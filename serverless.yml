@@ -1,21 +1,90 @@
-# "org" ensures this Service is used with the correct Serverless Framework Access Key.
 org: cctproject
 service: lambdapay
 
 provider:
   name: aws
   runtime: nodejs20.x
-  stage: 'dev'
-  region: 'eu-west-1'
+  stage: dev
+  region: eu-west-1
   memorySize: 128
   timeout: 3
+  environment:
+    USER_POOL_ID:
+      Ref: CognitoUserPool
+    USER_POOL_CLIENT_ID:
+      Ref: CognitoUserPoolClient
 
 functions:
   getTransactions:
     handler: lambda/handlers/GetTransactions.handler
-    description: Get all transactions 
+    description: Get all transactions
     events:
       - http:
-            path: /transactions
-            method: get
+          path: /transactions
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
 
+  getBalance:
+    handler: lambda/handlers/GetBalance.handler
+    description: Get your balance
+    events:
+      - http:
+          path: /balance
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  transfer:
+    handler: lambda/handlers/Transfer.handler
+    description: Transfer an amount
+    events:
+      - http:
+          path: /transfer
+          method: post
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+resources:
+  Resources:
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: ${self:provider.stage}-user-pool
+        UsernameAttributes:
+          - email
+        AutoVerifiedAttributes:
+          - email
+
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: ${self:provider.stage}-user-pool-client
+        UserPoolId:
+          Ref: CognitoUserPool
+        ExplicitAuthFlows:
+          - ADMIN_NO_SRP_AUTH
+          - USER_PASSWORD_AUTH
+        GenerateSecret: false
+
+    ApiGatewayAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        Name: CognitoAuthorizer
+        Type: COGNITO_USER_POOLS
+        IdentitySource: method.request.header.Authorization
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ProviderARNs:
+          - Fn::GetAtt:
+              - CognitoUserPool
+              - Arn
