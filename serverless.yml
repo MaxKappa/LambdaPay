@@ -8,11 +8,17 @@ provider:
   region: eu-west-1
   memorySize: 128
   timeout: 3
+
+
   environment:
     USER_POOL_ID:
       Ref: CognitoUserPool
     USER_POOL_CLIENT_ID:
       Ref: CognitoUserPoolClient
+    TRANSACTIONS_TABLE: 
+      Ref: TransactionsDynamoTable
+    BALANCE_TABLE: 
+      Ref: BalanceDynamoTable
 
 functions:
   getTransactions:
@@ -88,3 +94,31 @@ resources:
           - Fn::GetAtt:
               - CognitoUserPool
               - Arn
+
+    TransactionsDynamoTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-transactions-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: transactionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: transactionId
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+      
+    BalanceDynamoTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-balance-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
