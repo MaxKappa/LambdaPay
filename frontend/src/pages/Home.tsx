@@ -21,7 +21,14 @@ import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 import { useEffect, useState } from "react";
 import { useAuthToken } from "../hooks/auth";
-import { fetchBalance, fetchTransactions } from "../utils/api";
+import { fetchBalance, fetchTransactions, transfer } from "../utils/api";
+import React from "react";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import TextField from "@mui/material/TextField";
+import CircularProgress from "@mui/material/CircularProgress";
 
 export default function Home() {
   const { signOut } = useAuthenticator();
@@ -29,6 +36,11 @@ export default function Home() {
   const [balance, setBalance] = useState<string>("0.00");
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [recipient, setRecipient] = useState("");
+  const [amount, setAmount] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authToken) return;
@@ -41,6 +53,24 @@ export default function Home() {
       .catch(() => setTransactions([]))
       .finally(() => setLoading(false));
   }, [authToken]);
+
+  const handleSendMoney = async () => {
+    setSendError(null);
+    setSending(true);
+    try {
+      await transfer(authToken!, Number(amount), recipient);
+      setSendOpen(false);
+      setRecipient("");
+      setAmount("");
+      // Aggiorna saldo e transazioni dopo invio
+      fetchBalance(authToken!).then((data) => setBalance(Number(data.balance).toFixed(2)));
+      fetchTransactions(authToken!).then((data) => setTransactions(data || []));
+    } catch (e: any) {
+      setSendError(e.message || "Errore nell'invio");
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <Box sx={{ maxWidth: 600, mx: "auto", mt: 6, mb: 6 }}>
@@ -78,7 +108,8 @@ export default function Home() {
               fontWeight: 600,
               textTransform: "none",
             }}
-            disabled
+            onClick={() => setSendOpen(true)}
+            disabled={loading}
           >
             Invia denaro
           </Button>
@@ -102,6 +133,54 @@ export default function Home() {
           </Button>
         </Grid>
       </Grid>
+
+      {/* Dialog invio denaro */}
+      <Dialog open={sendOpen} onClose={() => setSendOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Invia denaro</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="ID destinatario"
+            fullWidth
+            margin="normal"
+            value={recipient}
+            onChange={e => setRecipient(e.target.value)}
+            disabled={sending}
+          />
+          <TextField
+            label="Importo (€)"
+            type="number"
+            fullWidth
+            margin="normal"
+            value={amount}
+            onChange={e => setAmount(e.target.value)}
+            disabled={sending}
+            inputProps={{ min: 0.01, step: 0.01 }}
+          />
+          {sendError && (
+            <Typography color="error" variant="body2" mt={1}>
+              {sendError}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSendOpen(false)} disabled={sending}>Annulla</Button>
+          <Button
+            onClick={handleSendMoney}
+            variant="contained"
+            color="primary"
+            disabled={
+              sending ||
+              !recipient ||
+              !amount ||
+              isNaN(Number(amount)) ||
+              Number(amount) <= 0
+            }
+            startIcon={sending ? <CircularProgress size={18} /> : null}
+          >
+            Invia
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Lista transazioni */}
       <Card sx={{ borderRadius: 4, boxShadow: 2 }}>

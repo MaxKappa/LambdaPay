@@ -4,7 +4,10 @@ import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 const db = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-west-1' });
 const TABLE = process.env.BALANCE_TABLE!; 
 
+
+
 export const handler: APIGatewayProxyHandler = async (event) => {
+  console.log("TABLE:", TABLE);
   console.log("event.requestContext.authorizer:", JSON.stringify(event.requestContext.authorizer));
   const claims = event.requestContext.authorizer?.claims || event.requestContext.authorizer;
   const userId = claims?.sub;

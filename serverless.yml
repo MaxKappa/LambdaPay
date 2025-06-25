@@ -59,6 +59,17 @@ functions:
             type: COGNITO_USER_POOLS
             authorizerId:
               Ref: ApiGatewayAuthorizer
+  
+  onUserSignup:
+    handler: lambda/handlers/OnUserSignup.handler
+    events:
+      - cognitoUserPool:
+          pool: ${self:provider.stage}-user-pool
+          trigger: PostConfirmation
+          existing: true
+          forceDeploy: true
+
+
 
 resources:
   Resources:
