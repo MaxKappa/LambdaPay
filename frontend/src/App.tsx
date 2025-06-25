@@ -1,20 +1,30 @@
-
-import { Authenticator } from '@aws-amplify/ui-react';
+import { Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
 import '@aws-amplify/ui-react/styles.css';
-import ConfigureAmplifyClientSide from "./config";
+import ConfigureAmplifyClientSide from './config';
+import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
+import Navbar from "./components/Navbar";
+
 
 ConfigureAmplifyClientSide();
 
-export default function App() {
+function AppRoutes() {
+  const { user } = useAuthenticator((context) => [context.user]);
   return (
-    <Authenticator>
-      {({ signOut, user }) => (
-        <main>
-          <h1>Hello {user?.username}</h1>
-          <button onClick={signOut}>Sign out</button>
-        </main>
-      )}
-    </Authenticator>
+    <>
+      <Navbar minimal={!user} />
+      <Routes>
+        <Route path="/" element={user ? <Home /> : null} />
+      </Routes>
+    </>
   );
 }
 
+export default function App() {
+  return (
+    <Authenticator.Provider>
+      <AppRoutes />
+      <Authenticator socialProviders={['apple', 'facebook', 'google']} />
+    </Authenticator.Provider>
+  );
+}

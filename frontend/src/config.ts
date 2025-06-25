@@ -12,6 +12,15 @@ export const authConfig: ResourcesConfig["Auth"] = {
             email: {
                 required: true,
             },
+            name: {
+                required: true,
+            },
+            phone_number: {
+                required: false,
+            },
+            birthdate: {
+                required: false,
+            },
         },
         allowGuestAccess: true,
         passwordFormat: {
