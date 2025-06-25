@@ -20,7 +20,7 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 import { useEffect, useState } from "react";
-import { useAuthToken } from "../hooks/auth";
+import { useAuthToken, getUserDetailsFromToken } from "../hooks/auth";
 import { fetchBalance, fetchTransactions, transfer } from "../utils/api";
 import React from "react";
 import Dialog from "@mui/material/Dialog";
@@ -41,9 +41,17 @@ export default function Home() {
   const [amount, setAmount] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authToken) return;
+    // Estrai la mail dall'authToken
+    try {
+      const details = getUserDetailsFromToken(authToken);
+      setUserEmail(details.email);
+    } catch {
+      setUserEmail(null);
+    }
     setLoading(true);
     fetchBalance(authToken)
       .then((data) => setBalance(Number(data.balance).toFixed(2)))
@@ -74,6 +82,13 @@ export default function Home() {
 
   return (
     <Box sx={{ maxWidth: 600, mx: "auto", mt: 6, mb: 6 }}>
+      {/* Ciao e mail */}
+      {userEmail && (
+        <Typography variant="h5" fontWeight={600} mb={2}>
+          Ciao, {userEmail}
+        </Typography>
+      )}
+
       {/* Saldo */}
       <Card sx={{ mb: 4, borderRadius: 4, boxShadow: 4 }}>
         <CardContent>
@@ -139,12 +154,15 @@ export default function Home() {
         <DialogTitle>Invia denaro</DialogTitle>
         <DialogContent>
           <TextField
-            label="ID destinatario"
+            label="Email destinatario"
             fullWidth
             margin="normal"
             value={recipient}
             onChange={e => setRecipient(e.target.value)}
             disabled={sending}
+            type="email"
+            autoComplete="email"
+            placeholder="esempio@email.com"
           />
           <TextField
             label="Importo (€)"
@@ -204,46 +222,83 @@ export default function Home() {
                 />
               </ListItem>
             ) : (
-              transactions.map((tx, idx) => (
-                <React.Fragment key={tx.transactionId || idx}>
-                  <ListItem>
-                    <ListItemAvatar>
-                      <Avatar
-                        sx={{
-                          bgcolor:
-                            Number(tx.amount) >= 0
+              transactions.map((tx, idx) => {
+                const getVal = (v: any) =>
+                  v && typeof v === "object"
+                    ? v.N ?? v.S ?? v.BOOL ?? v.NULL ?? v
+                    : v;
+
+                const rawAmount = getVal(tx.amount);
+                const amount = Number(rawAmount);
+                const validAmount = !isNaN(amount);
+                const date = getVal(tx.date);
+                // Format data e ora
+                let formattedDate = "";
+                if (date) {
+                  const d = new Date(date);
+                  formattedDate = d.toLocaleDateString("it-IT", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  }) + " " + d.toLocaleTimeString("it-IT", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                }
+                const transactionId = getVal(tx.transactionId);
+
+                const isPositive = validAmount && amount > 0;
+                const isNegative = validAmount && amount <= 0;
+
+                return (
+                  <React.Fragment key={transactionId ? String(transactionId) : `tx-${idx}`}>
+                    <ListItem>
+                      <ListItemAvatar>
+                        <Avatar
+                          sx={{
+                            bgcolor: isPositive
                               ? "success.light"
                               : "error.light",
-                        }}
+                          }}
+                        >
+                          {validAmount
+                            ? isPositive
+                              ? <ArrowDownwardIcon color="success" />
+                              : <ArrowUpwardIcon color="error" />
+                            : <ArrowUpwardIcon color="disabled" />}
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={
+                          validAmount
+                            ? isPositive
+                              ? "Bonifico ricevuto"
+                              : "Pagamento inviato"
+                            : "Transazione"
+                        }
+                        secondary={formattedDate || ""}
+                      />
+                      <Typography
+                        color={
+                          validAmount
+                            ? isPositive
+                              ? "success.main"
+                              : "error.main"
+                            : "text.secondary"
+                        }
+                        fontWeight={600}
                       >
-                        {Number(tx.amount) >= 0 ? (
-                          <ArrowDownwardIcon color="success" />
-                        ) : (
-                          <ArrowUpwardIcon color="error" />
-                        )}
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        Number(tx.amount) >= 0
-                          ? "Bonifico ricevuto"
-                          : "Pagamento inviato"
-                      }
-                      secondary={tx.date || ""}
-                    />
-                    <Typography
-                      color={
-                        Number(tx.amount) >= 0 ? "success.main" : "error.main"
-                      }
-                      fontWeight={600}
-                    >
-                      {Number(tx.amount) >= 0 ? "+" : "-"}€{" "}
-                      {Math.abs(Number(tx.amount)).toFixed(2)}
-                    </Typography>
-                  </ListItem>
-                  <Divider variant="inset" component="li" />
-                </React.Fragment>
-              ))
+                        {validAmount
+                          ? "€ " + Math.abs(amount).toFixed(2)
+                          : "-"}
+                      </Typography>
+                    </ListItem>
+                    {idx < transactions.length - 1 && (
+                      <Divider variant="inset" component="li" />
+                    )}
+                  </React.Fragment>
+                );
+              })
             )}
           </List>
         </CardContent>
