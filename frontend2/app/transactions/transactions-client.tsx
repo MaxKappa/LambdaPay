@@ -192,7 +192,10 @@ export default function TransactionsClient() {
                           {formatCurrency(Math.abs(amount))}
                         </p>
                         <p className="text-sm text-gray-500 mb-1">{formatDate(date)}</p>
-                        <Badge variant={isOutgoing ? "destructive" : "default"} className="text-xs">
+                        <Badge 
+                          variant={isOutgoing ? "destructive" : "secondary"} 
+                          className={`text-xs ${!isOutgoing ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}`}
+                        >
                           {isOutgoing ? "Sent" : "Received"}
                         </Badge>
                       </div>
