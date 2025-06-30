@@ -39,6 +39,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
   // Risolvi recipientId (email) in userId Cognito
   let resolvedRecipientId: string | undefined;
+  let resolvedUsername: string | undefined;
   try {
     const usersRes = await cognito.send(new ListUsersCommand({
       UserPoolId: USER_POOL_ID,
@@ -47,6 +48,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }));
     if (usersRes.Users && usersRes.Users.length > 0) {
       resolvedRecipientId = usersRes.Users[0].Attributes?.find(attr => attr.Name === "sub")?.Value;
+      resolvedUsername = usersRes.Users[0].Attributes?.find(attr => attr.Name === "preferred_username")?.Value;
     }
   } catch (err) {
     console.error("Errore nella ricerca utente Cognito:", err);
@@ -96,7 +98,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
               transactionId: { S: transactionId },
               amount: { N: (-numericAmount).toString() },
               date: { S: now },
-              to: { S: resolvedRecipientId }
+              to: { S: resolvedRecipientId },
+              toEmail: { S: recipientId },
+              toUsername: { S: resolvedUsername || ''}
             }
           }
         },
@@ -108,7 +112,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
               transactionId: { S: transactionId },
               amount: { N: numericAmount.toString() },
               date: { S: now },
-              from: { S: senderId }
+              from: { S: senderId },
+              fromEmail: { S: event.requestContext.authorizer?.claims.email || '' },
+              fromUsername: { S: event.requestContext.authorizer?.claims.preferred_username || '' }
             }
           }
         }
