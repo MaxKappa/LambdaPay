@@ -72,7 +72,14 @@ export default function TransactionsClient() {
     return null
   }
 
-  const filteredTransactions = transactions.filter((transaction) => {
+  // Sort transactions by timestamp in descending order (newest first)
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    const dateA = new Date(a.date.S).getTime()
+    const dateB = new Date(b.date.S).getTime()
+    return dateB - dateA
+  })
+
+  const filteredTransactions = sortedTransactions.filter((transaction) => {
     const amount = Number.parseFloat(transaction.amount.N)
     const isOutgoing = amount < 0
 
@@ -85,8 +92,11 @@ export default function TransactionsClient() {
       const searchLower = searchTerm.toLowerCase()
       const transactionId = transaction.transactionId.S.toLowerCase()
       const targetEmail = (isOutgoing ? transaction.toEmail?.S : transaction.fromEmail?.S)?.toLowerCase() || ""
+      const targetUsername = (isOutgoing ? transaction.toUsername?.S : transaction.fromUsername?.S)?.toLowerCase() || ""
 
-      return transactionId.includes(searchLower) || targetEmail.includes(searchLower)
+      return transactionId.includes(searchLower) || 
+             targetEmail.includes(searchLower) || 
+             targetUsername.includes(searchLower)
     }
 
     return true

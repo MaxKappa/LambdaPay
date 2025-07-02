@@ -108,7 +108,14 @@ export default function DashboardClient() {
     return null
   }
 
-  const recentTransactions = transactions.slice(0, 5)
+  // Sort transactions by timestamp in descending order (newest first)
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    const dateA = new Date(a.date.S).getTime()
+    const dateB = new Date(b.date.S).getTime()
+    return dateB - dateA
+  })
+
+  const recentTransactions = sortedTransactions.slice(0, 5)
 
   return (
     <div className="min-h-screen bg-gray-50">
