@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { getCurrentUser, signOut } from "@/lib/auth"
+import { getCurrentUser, signOut, getUsernameFromToken } from "@/lib/auth"
 import { getBalance, getTransactions } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +26,7 @@ interface Transaction {
 
 export default function DashboardClient() {
   const [user, setUser] = useState<any>(null)
+  const [username, setUsername] = useState<string>("")
   const [balance, setBalance] = useState("0")
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,7 +48,9 @@ export default function DashboardClient() {
 
         setUser(currentUser)
 
-        // Load user data
+        const usernameFromToken = await getUsernameFromToken()
+        setUsername(usernameFromToken || currentUser?.signInDetails?.loginId?.split('@')[0] || "User")
+
         const [userBalance, userTransactions] = await Promise.all([
           getBalance().catch(() => "0"),
           getTransactions().catch(() => []),
@@ -136,7 +139,7 @@ export default function DashboardClient() {
               </Button>
 
               <Avatar>
-                <AvatarFallback>{user?.signInDetails?.loginId?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                <AvatarFallback>{username.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
 
               <Button variant="ghost" onClick={handleSignOut}>
@@ -157,7 +160,7 @@ export default function DashboardClient() {
 
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Welcome back, {user.signInDetails?.loginId || "User"}
+            Welcome back, {username}
           </h2>
           <p className="text-gray-600">Manage your money with ease</p>
         </div>

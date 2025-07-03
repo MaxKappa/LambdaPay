@@ -5,6 +5,7 @@ import {
   confirmSignUp as amplifyConfirmSignUp,
   signOut as amplifySignOut,
   getCurrentUser as amplifyGetCurrentUser,
+  fetchAuthSession,
 } from "aws-amplify/auth"
 
 // Configure Amplify
@@ -73,6 +74,21 @@ export async function getCurrentUser() {
     const user = await amplifyGetCurrentUser()
     return user
   } catch (error) {
+    return null
+  }
+}
+
+export async function getUsernameFromToken() {
+  try {
+    const session = await fetchAuthSession()
+    const token = session.tokens?.idToken
+    if (token) {
+      const payload = JSON.parse(atob(token.toString().split('.')[1]))
+      return payload.preferred_username || payload.email?.split('@')[0]
+    }
+    return null
+  } catch (error) {
+    console.error('Error extracting username from token:', error)
     return null
   }
 }
