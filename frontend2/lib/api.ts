@@ -76,3 +76,63 @@ export async function transfer(amount: number, recipientEmail: string): Promise<
     throw new Error(error.message || "Transfer failed")
   }
 }
+
+export async function requestMoney(amount: number, recipientEmail: string, message?: string): Promise<void> {
+  try {
+    const headers = await getAuthHeaders()
+    const response = await fetch(`${API_BASE_URL}/request`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        amount: amount,
+        recipientEmail: recipientEmail,
+        message: message || '',
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || "Request failed")
+    }
+  } catch (error: any) {
+    throw new Error(error.message || "Request failed")
+  }
+}
+
+export async function getRequests(type: 'received' | 'sent' = 'received'): Promise<any[]> {
+  try {
+    const headers = await getAuthHeaders()
+    const response = await fetch(`${API_BASE_URL}/requests?type=${type}`, {
+      headers,
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch requests")
+    }
+
+    const data = await response.json()
+    return data || []
+  } catch (error: any) {
+    throw new Error(error.message || "Failed to get requests")
+  }
+}
+
+export async function respondToRequest(requestId: string, action: 'ACCEPT' | 'REJECT'): Promise<void> {
+  try {
+    const headers = await getAuthHeaders()
+    const response = await fetch(`${API_BASE_URL}/request/${requestId}/respond`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        action: action,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || "Response failed")
+    }
+  } catch (error: any) {
+    throw new Error(error.message || "Response failed")
+  }
+}

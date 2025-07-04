@@ -9,7 +9,6 @@ provider:
   memorySize: 128
   timeout: 3
 
-
   environment:
     USER_POOL_ID:
       Ref: CognitoUserPool
@@ -19,6 +18,54 @@ provider:
       Ref: TransactionsDynamoTable
     BALANCE_TABLE: 
       Ref: BalanceDynamoTable
+    REQUESTS_TABLE:
+      Ref: RequestsDynamoTable
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Scan
+      Resource:
+        - Fn::GetAtt:
+            - TransactionsDynamoTable
+            - Arn
+        - Fn::GetAtt:
+            - BalanceDynamoTable
+            - Arn
+        - Fn::GetAtt:
+            - RequestsDynamoTable
+            - Arn
+        - Fn::Sub:
+            - "${TableArn}/index/*"
+            - TableArn:
+                Fn::GetAtt:
+                  - TransactionsDynamoTable
+                  - Arn
+        - Fn::Sub:
+            - "${TableArn}/index/*"
+            - TableArn:
+                Fn::GetAtt:
+                  - BalanceDynamoTable
+                  - Arn
+        - Fn::Sub:
+            - "${TableArn}/index/*"
+            - TableArn:
+                Fn::GetAtt:
+                  - RequestsDynamoTable
+                  - Arn
+    - Effect: Allow
+      Action:
+        - cognito-idp:ListUsers
+        - cognito-idp:AdminGetUser
+      Resource:
+        - Fn::GetAtt:
+            - CognitoUserPool
+            - Arn
 
 functions:
   getTransactions:
@@ -53,6 +100,45 @@ functions:
     events:
       - http:
           path: /transfer
+          method: post
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  requestMoney:
+    handler: lambda/handlers/RequestMoney.handler
+    description: Request money from another user
+    events:
+      - http:
+          path: /request
+          method: post
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  getRequests:
+    handler: lambda/handlers/GetRequests.handler
+    description: Get pending money requests
+    events:
+      - http:
+          path: /requests
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  respondToRequest:
+    handler: lambda/handlers/RespondToRequest.handler
+    description: Accept or reject a money request
+    events:
+      - http:
+          path: /request/{requestId}/respond
           method: post
           cors: true
           authorizer:
@@ -132,4 +218,33 @@ resources:
         KeySchema:
           - AttributeName: userId
             KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    RequestsDynamoTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-requests-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: requestId
+            AttributeType: S
+          - AttributeName: toUserId
+            AttributeType: S
+          - AttributeName: fromUserId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: requestId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: ToUserIndex
+            KeySchema:
+              - AttributeName: toUserId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: FromUserIndex
+            KeySchema:
+              - AttributeName: fromUserId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST

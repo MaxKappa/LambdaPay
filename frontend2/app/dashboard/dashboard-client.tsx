@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { ArrowUpRight, ArrowDownLeft, Send, History, LogOut, RefreshCw, DollarSign, Loader2 } from "lucide-react"
+import { ArrowUpRight, ArrowDownLeft, Send, History, LogOut, RefreshCw, DollarSign, Loader2, HandCoins, MessageSquare } from "lucide-react"
 import TransferModal from "@/components/transfer-modal"
+import RequestMoneyModal from "@/components/request-money-modal"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 interface Transaction {
@@ -32,6 +33,7 @@ export default function DashboardClient() {
   const [loading, setLoading] = useState(true)
   const [dataLoading, setDataLoading] = useState(false)
   const [transferModalOpen, setTransferModalOpen] = useState(false)
+  const [requestModalOpen, setRequestModalOpen] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
 
@@ -184,6 +186,22 @@ export default function DashboardClient() {
                     <Send className="h-4 w-4 mr-2" />
                     Send Money
                   </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={() => setRequestModalOpen(true)}
+                  >
+                    <HandCoins className="h-4 w-4 mr-2" />
+                    Request Money
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full bg-transparent"
+                    onClick={() => router.push("/requests")}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Money Requests
+                  </Button>
                   <Button
                     variant="outline"
                     className="w-full bg-transparent"
@@ -275,6 +293,12 @@ export default function DashboardClient() {
         onClose={() => setTransferModalOpen(false)}
         onSuccess={refreshData}
         currentBalance={Number.parseFloat(balance)}
+      />
+      
+      <RequestMoneyModal
+        open={requestModalOpen}
+        onClose={() => setRequestModalOpen(false)}
+        onSuccess={refreshData}
       />
     </div>
   )
