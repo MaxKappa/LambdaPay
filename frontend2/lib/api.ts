@@ -117,7 +117,7 @@ export async function getRequests(type: 'received' | 'sent' = 'received'): Promi
   }
 }
 
-export async function respondToRequest(requestId: string, action: 'ACCEPT' | 'REJECT'): Promise<void> {
+export async function handleRequest(requestId: string, action: 'ACCEPT' | 'REJECT'): Promise<void> {
   try {
     const headers = await getAuthHeaders()
     const response = await fetch(`${API_BASE_URL}/request/${requestId}/respond`, {

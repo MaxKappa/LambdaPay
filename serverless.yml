@@ -133,8 +133,8 @@ functions:
             authorizerId:
               Ref: ApiGatewayAuthorizer
 
-  respondToRequest:
-    handler: lambda/handlers/RespondToRequest.handler
+  handleRequest:
+    handler: lambda/handlers/HandleRequest.handler
     description: Accept or reject a money request
     events:
       - http:

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "aws-amplify/auth"
-import { getRequests, respondToRequest } from "@/lib/api"
+import { getRequests, handleRequest } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -77,7 +77,7 @@ export default function RequestsClient() {
     setError("")
 
     try {
-      await respondToRequest(requestId, action)
+      await handleRequest(requestId, action)
       await loadRequests() // Ricarica le richieste
     } catch (error: any) {
       console.error("Error responding to request:", error)
