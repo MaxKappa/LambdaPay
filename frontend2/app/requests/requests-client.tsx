@@ -141,7 +141,20 @@ export default function RequestsClient() {
     return null
   }
 
-  const currentRequests = activeTab === 'received' ? receivedRequests : sentRequests
+  // Sort requests by timestamp in descending order (newest first)
+  const sortedReceivedRequests = [...receivedRequests].sort((a, b) => {
+    const dateA = new Date(a.createdAt.S).getTime()
+    const dateB = new Date(b.createdAt.S).getTime()
+    return dateB - dateA
+  })
+
+  const sortedSentRequests = [...sentRequests].sort((a, b) => {
+    const dateA = new Date(a.createdAt.S).getTime()
+    const dateB = new Date(b.createdAt.S).getTime()
+    return dateB - dateA
+  })
+
+  const currentRequests = activeTab === 'received' ? sortedReceivedRequests : sortedSentRequests
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('it-IT', {
@@ -204,7 +217,7 @@ export default function RequestsClient() {
                 onClick={() => setActiveTab('received')}
               >
                 <HandCoins className="w-4 h-4 mr-2" />
-                Received ({receivedRequests.filter(r => r.status.S === 'PENDING').length})
+                Received ({sortedReceivedRequests.filter(r => r.status.S === 'PENDING').length})
               </Button>
               <Button 
                 variant={activeTab === 'sent' ? "default" : "outline"} 
@@ -212,7 +225,7 @@ export default function RequestsClient() {
                 onClick={() => setActiveTab('sent')}
               >
                 <Send className="w-4 h-4 mr-2" />
-                Sent ({sentRequests.length})
+                Sent ({sortedSentRequests.length})
               </Button>
             </div>
           </CardHeader>
