@@ -1,4 +1,3 @@
-import { Amplify } from "aws-amplify"
 import {
   signIn as amplifySignIn,
   signUp as amplifySignUp,
@@ -7,17 +6,10 @@ import {
   getCurrentUser as amplifyGetCurrentUser,
   fetchAuthSession,
 } from "aws-amplify/auth"
+import { configureAmplify } from "./amplify-config"
 
-// Configure Amplify
-Amplify.configure({
-  Auth: {
-    Cognito: {
-      userPoolId: process.env.NEXT_PUBLIC_AMPLIFY_USERPOOL_ID!,
-      userPoolClientId: process.env.NEXT_PUBLIC_AMPLIFY_WEBCLIENT_ID!,
-      identityPoolId: process.env.NEXT_PUBLIC_AMPLIFY_IDENTITYPOOL_ID!,
-    },
-  },
-})
+// Assicurati che Amplify sia configurato
+configureAmplify()
 
 export async function signIn(email: string, password: string) {
   try {

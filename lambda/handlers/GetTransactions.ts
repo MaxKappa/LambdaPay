@@ -17,7 +17,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const { Items } = await db.send(new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: 'userId = :uid',
-      ExpressionAttributeValues: { ':uid': { S: userId } }
+      ExpressionAttributeValues: { ':uid': { S: userId } },
+      ConsistentRead: true
     }));
     return {
       headers: {

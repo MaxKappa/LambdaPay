@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Toaster } from "@/components/ui/toaster"
+import { AmplifyProvider } from "@/components/amplify-provider"
 
 export const metadata: Metadata = {
   title: 'LambdaPay',
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
-        <Toaster />
+        <AmplifyProvider>
+          {children}
+          <Toaster />
+        </AmplifyProvider>
       </body>
     </html>
   )

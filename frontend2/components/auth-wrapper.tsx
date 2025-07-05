@@ -5,6 +5,7 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import { getCurrentUser } from "@/lib/auth"
 import { Loader2 } from "lucide-react"
+import { configureAmplify } from "@/lib/amplify-config"
 
 interface AuthContextType {
   user: any | null
@@ -28,10 +29,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     try {
+      // Assicurati che Amplify sia configurato
+      configureAmplify()
       const currentUser = await getCurrentUser()
       setUser(currentUser)
-    } catch (error) {
-      setUser(null)
+    } catch (error: any) {
+      console.error("Error refreshing user:", error)
+      // Se l'errore è legato alla configurazione di Amplify, prova a riconfigurare
+      if (error.message?.includes("Auth UserPool not configured")) {
+        try {
+          configureAmplify()
+          const currentUser = await getCurrentUser()
+          setUser(currentUser)
+        } catch (retryError) {
+          console.error("Retry failed:", retryError)
+          setUser(null)
+        }
+      } else {
+        setUser(null)
+      }
     }
   }
 

@@ -8,25 +8,57 @@ const BALANCE_TABLE = process.env.BALANCE_TABLE!;
 const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  const requestId = event.pathParameters?.requestId;
-  const { action } = JSON.parse(event.body!); // 'ACCEPT' or 'REJECT'
-  const userId = event.requestContext.authorizer?.claims.sub!;
-  const userEmail = event.requestContext.authorizer?.claims.email!;
-  const username = event.requestContext.authorizer?.claims.preferred_username || userEmail.split('@')[0];
-
-  if (!requestId || !action || !userId) {
+  // Validazione del body della richiesta
+  if (!event.body) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Parametri mancanti' }),
+      body: JSON.stringify({ message: 'Body della richiesta mancante' }),
     };
   }
 
+  let parsedBody;
+  try {
+    parsedBody = JSON.parse(event.body);
+  } catch (error) {
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Formato JSON non valido' }),
+    };
+  }
+
+  const requestId = event.pathParameters?.requestId;
+  const { action } = parsedBody;
+  const userId = event.requestContext.authorizer?.claims.sub;
+  const userEmail = event.requestContext.authorizer?.claims.email;
+  const username = event.requestContext.authorizer?.claims.preferred_username || userEmail?.split('@')[0];
+
+  // Validazione rigorosa dei parametri
+  if (!requestId || !action || !userId || !userEmail) {
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Parametri mancanti: requestId, action, userId e userEmail sono obbligatori' }),
+    };
+  }
+
+  // Validazione dell'azione
   if (action !== 'ACCEPT' && action !== 'REJECT') {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
       body: JSON.stringify({ message: 'Azione non valida. Usa ACCEPT o REJECT' }),
+    };
+  }
+
+  // Validazione formato requestId (deve essere un UUID valido)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(requestId)) {
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Formato requestId non valido' }),
     };
   }
 
@@ -66,6 +98,25 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
 
     const amount = parseFloat(request.amount.N!);
+    
+    // Validazione aggiuntiva sull'amount dalla richiesta memorizzata
+    if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
+      return {
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        statusCode: 400,
+        body: JSON.stringify({ message: 'Importo della richiesta non valido' }),
+      };
+    }
+
+    // Validazione di sicurezza: verifica che l'amount non sia stato manipolato
+    if (Math.round(amount * 100) !== amount * 100) {
+      return {
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        statusCode: 400,
+        body: JSON.stringify({ message: 'Importo con precisione decimale non valida' }),
+      };
+    }
+
     const fromUserId = request.fromUserId.S!;
     const now = new Date().toISOString();
 
@@ -115,8 +166,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             TableName: BALANCE_TABLE,
             Key: { userId: { S: userId } },
             UpdateExpression: 'SET balance = if_not_exists(balance, :zero) - :amt',
-            ExpressionAttributeValues: { ':amt': { N: amount.toString() }, ':zero': { N: '0' } },
-            ConditionExpression: 'balance >= :amt'
+            ExpressionAttributeValues: { 
+              ':amt': { N: Math.abs(amount).toString() }, // Forza valore assoluto per sicurezza
+              ':zero': { N: '0' } 
+            },
+            ConditionExpression: 'balance >= :amt AND :amt > :zero' // Doppia verifica
           }
         },
         // Aggiorna saldo del ricevente (aggiunge denaro)
@@ -125,7 +179,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             TableName: BALANCE_TABLE,
             Key: { userId: { S: fromUserId } },
             UpdateExpression: 'SET balance = if_not_exists(balance, :zero) + :amt',
-            ExpressionAttributeValues: { ':amt': { N: amount.toString() }, ':zero': { N: '0' } }
+            ExpressionAttributeValues: { 
+              ':amt': { N: Math.abs(amount).toString() }, // Forza valore assoluto per sicurezza
+              ':zero': { N: '0' } 
+            },
+            ConditionExpression: ':amt > :zero' // Verifica che l'amount sia positivo
           }
         },
         // Crea transazione per il pagatore (negativa)
@@ -135,7 +193,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Item: {
               userId: { S: userId },
               transactionId: { S: transactionId },
-              amount: { N: (-amount).toString() },
+              amount: { N: (-Math.abs(amount)).toString() }, // Forza negativo assoluto
               date: { S: now },
               to: { S: fromUserId },
               toEmail: { S: request.fromEmail.S! },
@@ -151,7 +209,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Item: {
               userId: { S: fromUserId },
               transactionId: { S: transactionId },
-              amount: { N: amount.toString() },
+              amount: { N: Math.abs(amount).toString() }, // Forza positivo assoluto
               date: { S: now },
               from: { S: userId },
               fromEmail: { S: userEmail },
@@ -187,7 +245,20 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
 
   } catch (err: any) {
-    console.error(err);
+    console.error('Errore durante la gestione della richiesta:', err);
+    
+    // Gestione specifica per errori di condizione (saldo insufficiente)
+    if (err.name === 'TransactionCanceledException' && err.CancellationReasons) {
+      const balanceFailure = err.CancellationReasons.find((reason: any) => reason.Code === 'ConditionalCheckFailed');
+      if (balanceFailure) {
+        return { 
+          headers: { 'Access-Control-Allow-Origin': '*' }, 
+          statusCode: 400, 
+          body: JSON.stringify({ message: 'Saldo insufficiente per completare il pagamento' }) 
+        };
+      }
+    }
+    
     if (err.name === 'ConditionalCheckFailedException') {
       return {
         headers: { 'Access-Control-Allow-Origin': '*' },
@@ -195,10 +266,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         body: JSON.stringify({ message: 'Saldo insufficiente' })
       };
     }
+    
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 500,
-      body: JSON.stringify({ message: 'Errore nel processare la risposta alla richiesta' })
+      body: JSON.stringify({ message: 'Errore interno del server durante la gestione della richiesta' })
     };
   }
 };

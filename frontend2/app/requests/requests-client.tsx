@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Loader2, Check, X, HandCoins, Send, Clock } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
+import { configureAmplify } from "@/lib/amplify-config"
 
 interface MoneyRequest {
   requestId: { S: string }
@@ -38,6 +39,9 @@ export default function RequestsClient() {
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
+        // Assicurati che Amplify sia configurato prima di controllare l'autenticazione
+        configureAmplify()
+        
         const currentUser = await getCurrentUser()
 
         if (!currentUser) {
@@ -47,8 +51,23 @@ export default function RequestsClient() {
 
         setUser(currentUser)
         await loadRequests()
-      } catch (error) {
+      } catch (error: any) {
         console.error("Authentication or data loading error:", error)
+        // Se l'errore è legato alla configurazione di Amplify, prova a riconfigurare
+        if (error.message?.includes("Auth UserPool not configured")) {
+          try {
+            configureAmplify()
+            // Riprova dopo la riconfigurazione
+            const currentUser = await getCurrentUser()
+            if (currentUser) {
+              setUser(currentUser)
+              await loadRequests()
+              return
+            }
+          } catch (retryError) {
+            console.error("Retry failed:", retryError)
+          }
+        }
         router.push("/auth/login")
       } finally {
         setLoading(false)

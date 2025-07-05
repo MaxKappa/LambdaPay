@@ -13,6 +13,7 @@ import TransferModal from "@/components/transfer-modal"
 import RequestMoneyModal from "@/components/request-money-modal"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
+import { configureAmplify } from "@/lib/amplify-config"
 
 interface Transaction {
   transactionId: { S: string }
@@ -41,6 +42,9 @@ export default function DashboardClient() {
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
+        // Assicurati che Amplify sia configurato prima di controllare l'autenticazione
+        configureAmplify()
+        
         const currentUser = await getCurrentUser()
         console.log("Current user:", currentUser?.signInDetails?.loginId)
         if (!currentUser) {
@@ -60,8 +64,32 @@ export default function DashboardClient() {
 
         setBalance(userBalance)
         setTransactions(userTransactions)
-      } catch (error) {
+      } catch (error: any) {
         console.error("Authentication or data loading error:", error)
+        // Se l'errore è legato alla configurazione di Amplify, prova a riconfigurare
+        if (error.message?.includes("Auth UserPool not configured")) {
+          try {
+            configureAmplify()
+            // Riprova dopo la riconfigurazione
+            const currentUser = await getCurrentUser()
+            if (currentUser) {
+              setUser(currentUser)
+              const usernameFromToken = await getUsernameFromToken()
+              setUsername(usernameFromToken || currentUser?.signInDetails?.loginId?.split('@')[0] || "User")
+              
+              const [userBalance, userTransactions] = await Promise.all([
+                getBalance().catch(() => "0"),
+                getTransactions().catch(() => []),
+              ])
+              
+              setBalance(userBalance)
+              setTransactions(userTransactions)
+              return
+            }
+          } catch (retryError) {
+            console.error("Retry failed:", retryError)
+          }
+        }
         router.push("/auth/login")
       } finally {
         setLoading(false)

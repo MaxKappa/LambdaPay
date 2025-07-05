@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { ArrowUpRight, ArrowDownLeft, ArrowLeft, Search, Filter, Loader2 } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { configureAmplify } from "@/lib/amplify-config"
 
 interface Transaction {
   transactionId: { S: string }
@@ -34,6 +35,9 @@ export default function TransactionsClient() {
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
+        // Assicurati che Amplify sia configurato prima di controllare l'autenticazione
+        configureAmplify()
+        
         const currentUser = await getCurrentUser()
 
         if (!currentUser) {
@@ -46,8 +50,24 @@ export default function TransactionsClient() {
         const userTransactions = await getTransactions().catch(() => [])
         console.log("Transactions loaded:", userTransactions)
         setTransactions(userTransactions)
-      } catch (error) {
+      } catch (error: any) {
         console.error("Authentication or data loading error:", error)
+        // Se l'errore è legato alla configurazione di Amplify, prova a riconfigurare
+        if (error.message?.includes("Auth UserPool not configured")) {
+          try {
+            configureAmplify()
+            // Riprova dopo la riconfigurazione
+            const currentUser = await getCurrentUser()
+            if (currentUser) {
+              setUser(currentUser)
+              const userTransactions = await getTransactions().catch(() => [])
+              setTransactions(userTransactions)
+              return
+            }
+          } catch (retryError) {
+            console.error("Retry failed:", retryError)
+          }
+        }
         router.push("/auth/login")
       } finally {
         setLoading(false)

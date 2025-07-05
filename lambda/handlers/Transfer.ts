@@ -10,18 +10,95 @@ const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE!;
 const USER_POOL_ID = process.env.USER_POOL_ID!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  const { amount, recipientId } = JSON.parse(event.body!);
-  const senderId = event.requestContext.authorizer?.claims.sub!;
-  
-  if (!amount || isNaN(Number(amount)) || !recipientId || !senderId) {
+  // Validazione del body della richiesta
+  if (!event.body) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Parametri mancanti o amount non valido' }),
+      body: JSON.stringify({ message: 'Body della richiesta mancante' }),
+    };
+  }
+
+  let parsedBody;
+  try {
+    parsedBody = JSON.parse(event.body);
+  } catch (error) {
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Formato JSON non valido' }),
+    };
+  }
+
+  const { amount, recipientId } = parsedBody;
+  const senderId = event.requestContext.authorizer?.claims.sub;
+  
+  // Validazione rigorosa dei parametri
+  if (!amount || !recipientId || !senderId) {
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Parametri mancanti: amount, recipientId e senderId sono obbligatori' }),
+    };
+  }
+
+  // Validazione del tipo di dato amount - deve essere numerico e convertibile
+  if (typeof amount !== 'number' && typeof amount !== 'string') {
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Amount deve essere un numero' }),
     };
   }
 
   const numericAmount = Number(amount);
+
+  // Validazione robusta dell'amount
+  if (isNaN(numericAmount) || !isFinite(numericAmount)) {
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Amount non è un numero valido' }),
+    };
+  }
+
+  // Validazione di sicurezza: l'importo deve essere strettamente positivo
+  if (numericAmount <= 0) {
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      statusCode: 400,
+      body: JSON.stringify({ message: 'L\'importo deve essere maggiore di zero' }),
+    };
+  }
+
+  // Validazione precisione decimale (massimo 2 cifre decimali per valori monetari)
+  if (Math.round(numericAmount * 100) !== numericAmount * 100) {
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      statusCode: 400,
+      body: JSON.stringify({ message: 'L\'importo può avere massimo 2 cifre decimali' }),
+    };
+  }
+
+  // Validazione di sicurezza: limite massimo per importo (es. 1 milione)
+  const MAX_TRANSFER_AMOUNT = 1000000;
+  if (numericAmount > MAX_TRANSFER_AMOUNT) {
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      statusCode: 400,
+      body: JSON.stringify({ message: `L'importo non può superare ${MAX_TRANSFER_AMOUNT.toLocaleString('it-IT')} euro` }),
+    };
+  }
+
+  // Impedisce auto-trasferimenti
+  const senderEmail = event.requestContext.authorizer?.claims.email;
+  if (recipientId === senderEmail) {
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Non puoi trasferire denaro a te stesso' }),
+    };
+  }
 
   // Controlla saldo mittente
   const senderBalanceRes = await db.send(new GetItemCommand({
@@ -78,8 +155,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             TableName: BALANCE_TABLE,
             Key: { userId: { S: senderId } },
             UpdateExpression: 'SET balance = if_not_exists(balance, :zero) - :amt',
-            ExpressionAttributeValues: { ':amt': { N: numericAmount.toString() }, ':zero': { N: '0' } },
-            ConditionExpression: 'balance >= :amt'
+            ExpressionAttributeValues: { 
+              ':amt': { N: Math.abs(numericAmount).toString() }, // Forza valore assoluto per sicurezza
+              ':zero': { N: '0' } 
+            },
+            ConditionExpression: 'balance >= :amt AND :amt > :zero' // Doppia verifica
           }
         },
         {
@@ -87,7 +167,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             TableName: BALANCE_TABLE,
             Key: { userId: { S: resolvedRecipientId } },
             UpdateExpression: 'SET balance = if_not_exists(balance, :zero) + :amt',
-            ExpressionAttributeValues: { ':amt': { N: numericAmount.toString() }, ':zero': { N: '0' } }
+            ExpressionAttributeValues: { 
+              ':amt': { N: Math.abs(numericAmount).toString() }, // Forza valore assoluto per sicurezza
+              ':zero': { N: '0' } 
+            },
+            ConditionExpression: ':amt > :zero' // Verifica che l'amount sia positivo
           }
         },
         {
@@ -96,7 +180,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Item: {
               userId: { S: senderId },
               transactionId: { S: transactionId },
-              amount: { N: (-numericAmount).toString() },
+              amount: { N: (-Math.abs(numericAmount)).toString() }, // Forza negativo assoluto
               date: { S: now },
               to: { S: resolvedRecipientId },
               toEmail: { S: recipientId },
@@ -110,7 +194,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Item: {
               userId: { S: resolvedRecipientId },
               transactionId: { S: transactionId },
-              amount: { N: numericAmount.toString() },
+              amount: { N: Math.abs(numericAmount).toString() }, // Forza positivo assoluto
               date: { S: now },
               from: { S: senderId },
               fromEmail: { S: event.requestContext.authorizer?.claims.email || '' },
@@ -122,7 +206,24 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }));
     return { headers: { 'Access-Control-Allow-Origin': '*' }, statusCode: 200, body: JSON.stringify({ message: 'Transfer completed' }) };
   } catch (err: any) {
-    console.error(err);
-    return { headers: { 'Access-Control-Allow-Origin': '*' }, statusCode: 500, body: JSON.stringify({ message: 'Errore nel trasferimento' }) };
+    console.error('Errore durante il trasferimento:', err);
+    
+    // Gestione specifica per errori di condizione (saldo insufficiente)
+    if (err.name === 'TransactionCanceledException' && err.CancellationReasons) {
+      const balanceFailure = err.CancellationReasons.find((reason: any) => reason.Code === 'ConditionalCheckFailed');
+      if (balanceFailure) {
+        return { 
+          headers: { 'Access-Control-Allow-Origin': '*' }, 
+          statusCode: 400, 
+          body: JSON.stringify({ message: 'Saldo insufficiente per completare il trasferimento' }) 
+        };
+      }
+    }
+    
+    return { 
+      headers: { 'Access-Control-Allow-Origin': '*' }, 
+      statusCode: 500, 
+      body: JSON.stringify({ message: 'Errore interno del server durante il trasferimento' }) 
+    };
   }
 };
