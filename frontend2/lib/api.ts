@@ -56,7 +56,7 @@ export async function getTransactions(): Promise<any[]> {
   }
 }
 
-export async function transfer(amount: number, recipientEmail: string): Promise<void> {
+export async function transfer(amount: number, recipientEmail: string): Promise<{ success: boolean; message?: string }> {
   try {
     const headers = await getAuthHeaders()
     const response = await fetch(`${API_BASE_URL}/transfer`, {
@@ -70,14 +70,16 @@ export async function transfer(amount: number, recipientEmail: string): Promise<
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.message || "Transfer failed")
+      return { success: false, message: errorData.message || "Transfer failed" }
     }
+    
+    return { success: true }
   } catch (error: any) {
-    throw new Error(error.message || "Transfer failed")
+    return { success: false, message: error.message || "Transfer failed" }
   }
 }
 
-export async function requestMoney(amount: number, recipientEmail: string, message?: string): Promise<void> {
+export async function requestMoney(amount: number, recipientEmail: string, message?: string): Promise<{ success: boolean; message?: string }> {
   try {
     const headers = await getAuthHeaders()
     const response = await fetch(`${API_BASE_URL}/request`, {
@@ -92,10 +94,12 @@ export async function requestMoney(amount: number, recipientEmail: string, messa
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.message || "Request failed")
+      return { success: false, message: errorData.message || "Request failed" }
     }
+    
+    return { success: true }
   } catch (error: any) {
-    throw new Error(error.message || "Request failed")
+    return { success: false, message: error.message || "Request failed" }
   }
 }
 
@@ -117,7 +121,7 @@ export async function getRequests(type: 'received' | 'sent' = 'received'): Promi
   }
 }
 
-export async function handleRequest(requestId: string, action: 'ACCEPT' | 'REJECT'): Promise<void> {
+export async function handleRequest(requestId: string, action: 'ACCEPT' | 'REJECT'): Promise<{ success: boolean; message?: string }> {
   try {
     const headers = await getAuthHeaders()
     const response = await fetch(`${API_BASE_URL}/request/${requestId}/respond`, {
@@ -130,9 +134,11 @@ export async function handleRequest(requestId: string, action: 'ACCEPT' | 'REJEC
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.message || "Response failed")
+      return { success: false, message: errorData.message || "Response failed" }
     }
+    
+    return { success: true }
   } catch (error: any) {
-    throw new Error(error.message || "Response failed")
+    return { success: false, message: error.message || "Response failed" }
   }
 }

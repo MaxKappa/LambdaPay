@@ -7,9 +7,9 @@ import { getRequests, handleRequest } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Loader2, Check, X, HandCoins, Send, Clock } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { toast } from "@/hooks/use-toast"
 
 interface MoneyRequest {
   requestId: { S: string }
@@ -77,11 +77,31 @@ export default function RequestsClient() {
     setError("")
 
     try {
-      await handleRequest(requestId, action)
-      await loadRequests() // Ricarica le richieste
+      const result = await handleRequest(requestId, action)
+      
+      if (result.success) {
+        await loadRequests() // Ricarica le richieste
+        toast({
+          title: action === 'ACCEPT' ? "Request accepted" : "Request rejected",
+          description: action === 'ACCEPT' 
+            ? "The money request has been accepted successfully." 
+            : "The money request has been rejected.",
+        })
+      } else {
+        // Mostra l'errore tramite toast senza rompere l'applicazione
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.message || "Failed to respond to request",
+        })
+      }
     } catch (error: any) {
       console.error("Error responding to request:", error)
-      setError(error.message || "Failed to respond to request")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred",
+      })
     } finally {
       setProcessingId(null)
     }
@@ -152,14 +172,6 @@ export default function RequestsClient() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="mb-6">
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          </div>
-        )}
-
         <Card>
           <CardHeader>
             <CardTitle>Money Requests</CardTitle>

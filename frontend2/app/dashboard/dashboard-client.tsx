@@ -12,6 +12,7 @@ import { ArrowUpRight, ArrowDownLeft, Send, History, LogOut, RefreshCw, DollarSi
 import TransferModal from "@/components/transfer-modal"
 import RequestMoneyModal from "@/components/request-money-modal"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { toast } from "@/hooks/use-toast"
 
 interface Transaction {
   transactionId: { S: string }
@@ -34,7 +35,6 @@ export default function DashboardClient() {
   const [dataLoading, setDataLoading] = useState(false)
   const [transferModalOpen, setTransferModalOpen] = useState(false)
   const [requestModalOpen, setRequestModalOpen] = useState(false)
-  const [error, setError] = useState("")
   const router = useRouter()
 
   // Check authentication and load initial data
@@ -73,7 +73,6 @@ export default function DashboardClient() {
 
   const refreshData = async () => {
     setDataLoading(true)
-    setError("")
 
     try {
       const [newBalance, newTransactions] = await Promise.all([getBalance(), getTransactions()])
@@ -81,7 +80,11 @@ export default function DashboardClient() {
       setTransactions(newTransactions)
     } catch (error: any) {
       console.error("Error refreshing data:", error)
-      setError("Failed to refresh data. Please try again.")
+      toast({
+        variant: "destructive",
+        title: "Error refreshing data",
+        description: "Failed to refresh data. Please try again.",
+      })
     } finally {
       setDataLoading(false)
     }
@@ -154,12 +157,6 @@ export default function DashboardClient() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800">{error}</p>
-          </div>
-        )}
-
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Welcome back, {username}

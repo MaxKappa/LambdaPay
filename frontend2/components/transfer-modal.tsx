@@ -7,10 +7,10 @@ import { transfer } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Loader2, Send, CheckCircle } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { toast } from "@/hooks/use-toast"
 
 interface TransferModalProps {
   open: boolean
@@ -23,44 +23,71 @@ export default function TransferModal({ open, onClose, onSuccess, currentBalance
   const [recipientEmail, setRecipientEmail] = useState("")
   const [amount, setAmount] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError("")
 
     const numericAmount = Number.parseFloat(amount)
 
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      setError("Please enter a valid amount")
+      toast({
+        variant: "destructive",
+        title: "Invalid amount",
+        description: "Please enter a valid amount",
+      })
       setLoading(false)
       return
     }
 
     if (numericAmount > currentBalance) {
-      setError("Insufficient balance")
+      toast({
+        variant: "destructive",
+        title: "Insufficient balance",
+        description: "You don't have enough balance for this transfer",
+      })
       setLoading(false)
       return
     }
 
     if (!recipientEmail.includes("@")) {
-      setError("Please enter a valid email address")
+      toast({
+        variant: "destructive",
+        title: "Invalid email",
+        description: "Please enter a valid email address",
+      })
       setLoading(false)
       return
     }
 
     try {
-      await transfer(numericAmount, recipientEmail)
-      setSuccess(true)
-      setTimeout(() => {
-        setSuccess(false)
-        onSuccess()
-        handleClose()
-      }, 2000)
+      const result = await transfer(numericAmount, recipientEmail)
+      
+      if (result.success) {
+        setSuccess(true)
+        toast({
+          title: "Transfer successful",
+          description: `Successfully transferred ${formatCurrency(numericAmount)} to ${recipientEmail}`,
+        })
+        setTimeout(() => {
+          setSuccess(false)
+          onSuccess()
+          handleClose()
+        }, 2000)
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Transfer failed",
+          description: result.message || "Transfer failed",
+        })
+      }
     } catch (err: any) {
-      setError(err.message || "Transfer failed")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred",
+      })
     } finally {
       setLoading(false)
     }
@@ -69,7 +96,6 @@ export default function TransferModal({ open, onClose, onSuccess, currentBalance
   const handleClose = () => {
     setRecipientEmail("")
     setAmount("")
-    setError("")
     setSuccess(false)
     onClose()
   }
@@ -102,12 +128,6 @@ export default function TransferModal({ open, onClose, onSuccess, currentBalance
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="recipient">Recipient Email</Label>
             <Input

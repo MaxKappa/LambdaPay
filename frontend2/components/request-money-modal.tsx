@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Loader2, HandCoins, CheckCircle } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { toast } from "@/hooks/use-toast"
 
 interface RequestMoneyModalProps {
   open: boolean
@@ -24,38 +24,61 @@ export default function RequestMoneyModal({ open, onClose, onSuccess }: RequestM
   const [amount, setAmount] = useState("")
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError("")
 
     const numericAmount = Number.parseFloat(amount)
 
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      setError("Please enter a valid amount")
+      toast({
+        variant: "destructive",
+        title: "Invalid amount",
+        description: "Please enter a valid amount",
+      })
       setLoading(false)
       return
     }
 
     if (!recipientEmail.includes("@")) {
-      setError("Please enter a valid email address")
+      toast({
+        variant: "destructive",
+        title: "Invalid email",
+        description: "Please enter a valid email address",
+      })
       setLoading(false)
       return
     }
 
     try {
-      await requestMoney(numericAmount, recipientEmail, message)
-      setSuccess(true)
-      setTimeout(() => {
-        setSuccess(false)
-        onSuccess()
-        handleClose()
-      }, 2000)
+      const result = await requestMoney(numericAmount, recipientEmail, message)
+      
+      if (result.success) {
+        setSuccess(true)
+        toast({
+          title: "Request sent",
+          description: `Money request for ${formatCurrency(numericAmount)} sent to ${recipientEmail}`,
+        })
+        setTimeout(() => {
+          setSuccess(false)
+          onSuccess()
+          handleClose()
+        }, 2000)
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Request failed",
+          description: result.message || "Request failed",
+        })
+      }
     } catch (err: any) {
-      setError(err.message || "Request failed")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred",
+      })
     } finally {
       setLoading(false)
     }
@@ -65,7 +88,6 @@ export default function RequestMoneyModal({ open, onClose, onSuccess }: RequestM
     setRecipientEmail("")
     setAmount("")
     setMessage("")
-    setError("")
     setSuccess(false)
     onClose()
   }
@@ -98,12 +120,6 @@ export default function RequestMoneyModal({ open, onClose, onSuccess }: RequestM
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="recipient">Recipient Email</Label>
             <Input
