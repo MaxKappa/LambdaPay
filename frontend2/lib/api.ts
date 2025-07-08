@@ -20,7 +20,7 @@ async function getAuthHeaders() {
   }
 }
 
-export async function getBalance(): Promise<string> {
+export async function getBalance(): Promise<number> {
   try {
     const headers = await getAuthHeaders()
     const response = await fetch(`${API_BASE_URL}/balance`, {
@@ -32,7 +32,8 @@ export async function getBalance(): Promise<string> {
     }
 
     const data = await response.json()
-    return data.balance || "0"
+    // Il backend restituisce i centesimi
+    return parseInt(data.balance) || 0
   } catch (error: any) {
     throw new Error(error.message || "Failed to get balance")
   }
@@ -56,14 +57,14 @@ export async function getTransactions(): Promise<any[]> {
   }
 }
 
-export async function transfer(amount: number, recipientEmail: string): Promise<{ success: boolean; message?: string }> {
+export async function transfer(amountInCents: number, recipientEmail: string): Promise<{ success: boolean; message?: string }> {
   try {
     const headers = await getAuthHeaders()
     const response = await fetch(`${API_BASE_URL}/transfer`, {
       method: "POST",
       headers,
       body: JSON.stringify({
-        amount: amount,
+        amount: amountInCents, // Invia i centesimi al backend
         recipientId: recipientEmail,
       }),
     })
@@ -79,14 +80,14 @@ export async function transfer(amount: number, recipientEmail: string): Promise<
   }
 }
 
-export async function requestMoney(amount: number, recipientEmail: string, message?: string): Promise<{ success: boolean; message?: string }> {
+export async function requestMoney(amountInCents: number, recipientEmail: string, message?: string): Promise<{ success: boolean; message?: string }> {
   try {
     const headers = await getAuthHeaders()
     const response = await fetch(`${API_BASE_URL}/request`, {
       method: "POST",
       headers,
       body: JSON.stringify({
-        amount: amount,
+        amount: amountInCents, // Invia i centesimi al backend
         recipientEmail: recipientEmail,
         message: message || '',
       }),

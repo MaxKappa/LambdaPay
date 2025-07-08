@@ -293,7 +293,7 @@ export default function RequestsClient() {
             ) : (
               <div className="space-y-4">
                 {currentRequests.map((request) => {
-                  const amount = Number.parseFloat(request.amount.N)
+                  const amount = parseInt(request.amount.N) // Ora è in centesimi
                   const isPending = request.status.S === 'PENDING'
                   const isReceived = activeTab === 'received'
 

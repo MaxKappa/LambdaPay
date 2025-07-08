@@ -131,11 +131,11 @@ export default function DashboardClient() {
         setUsername(usernameFromToken || currentUser?.signInDetails?.loginId?.split('@')[0] || "User")
 
         const [userBalance, userTransactions] = await Promise.all([
-          getBalance().catch(() => "0"),
+          getBalance().catch(() => 0),
           getTransactions().catch(() => []),
         ])
 
-        setBalance(userBalance)
+        setBalance(userBalance.toString())
         setTransactions(userTransactions)
       } catch (error: any) {
         console.error("Authentication or data loading error:", error)
@@ -151,11 +151,11 @@ export default function DashboardClient() {
               setUsername(usernameFromToken || currentUser?.signInDetails?.loginId?.split('@')[0] || "User")
               
               const [userBalance, userTransactions] = await Promise.all([
-                getBalance().catch(() => "0"),
+                getBalance().catch(() => 0),
                 getTransactions().catch(() => []),
               ])
               
-              setBalance(userBalance)
+              setBalance(userBalance.toString())
               setTransactions(userTransactions)
               return
             }
@@ -177,7 +177,7 @@ export default function DashboardClient() {
 
     try {
       const [newBalance, newTransactions] = await Promise.all([getBalance(), getTransactions()])
-      setBalance(newBalance)
+      setBalance(newBalance.toString())
       setTransactions(newTransactions)
     } catch (error: any) {
       console.error("Error refreshing data:", error)
@@ -403,7 +403,7 @@ export default function DashboardClient() {
         open={transferModalOpen}
         onClose={() => setTransferModalOpen(false)}
         onSuccess={refreshData}
-        currentBalance={Number.parseFloat(balance)}
+        currentBalance={parseInt(balance)}
       />
       
       <RequestMoneyModal

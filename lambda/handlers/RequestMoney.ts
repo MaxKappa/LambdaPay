@@ -44,28 +44,28 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Validazione del tipo di dato amount
-  if (typeof amount !== 'number' && typeof amount !== 'string') {
+  // Validazione del tipo di dato amount - deve essere un numero intero (centesimi)
+  if (typeof amount !== 'number') {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Amount deve essere un numero' }),
+      body: JSON.stringify({ message: 'Amount deve essere un numero intero (centesimi)' }),
     };
   }
 
-  const numericAmount = Number(amount);
+  const amountInCents = amount;
 
   // Validazione robusta dell'amount
-  if (isNaN(numericAmount) || !isFinite(numericAmount)) {
+  if (!Number.isInteger(amountInCents) || !isFinite(amountInCents)) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Amount non è un numero valido' }),
+      body: JSON.stringify({ message: 'Amount deve essere un numero intero (centesimi)' }),
     };
   }
 
   // Validazione di sicurezza: l'importo deve essere strettamente positivo
-  if (numericAmount <= 0) {
+  if (amountInCents <= 0) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
@@ -73,22 +73,13 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Validazione precisione decimale (massimo 2 cifre decimali per valori monetari)
-  if (Math.round(numericAmount * 100) !== numericAmount * 100) {
+  // Validazione di sicurezza: limite massimo per importo richiesto (100.000 centesimi = 1.000 euro)
+  const MAX_REQUEST_AMOUNT = 100000;
+  if (amountInCents > MAX_REQUEST_AMOUNT) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'L\'importo può avere massimo 2 cifre decimali' }),
-    };
-  }
-
-  // Validazione di sicurezza: limite massimo per importo richiesto
-  const MAX_REQUEST_AMOUNT = 100000; // 100k limite per richieste
-  if (numericAmount > MAX_REQUEST_AMOUNT) {
-    return {
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      statusCode: 400,
-      body: JSON.stringify({ message: `L'importo richiesto non può superare ${MAX_REQUEST_AMOUNT.toLocaleString('it-IT')} euro` }),
+      body: JSON.stringify({ message: `L'importo richiesto non può superare ${(MAX_REQUEST_AMOUNT / 100).toLocaleString('it-IT')} euro` }),
     };
   }
 
@@ -169,7 +160,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         requestId: { S: requestId },
         fromUserId: { S: fromUserId },
         toUserId: { S: toUserId },
-        amount: { N: Math.abs(numericAmount).toString() }, // Forza valore assoluto per sicurezza
+        amount: { N: Math.abs(amountInCents).toString() }, // Forza valore assoluto per sicurezza
         message: { S: (message || '').substring(0, 500) }, // Limita messaggio e forza stringa sicura
         status: { S: 'PENDING' },
         createdAt: { S: now },
@@ -189,7 +180,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         data: {
           type: 'NEW_REQUEST',
           requestId,
-          amount: numericAmount,
+          amount: amountInCents,
           message: (message || '').substring(0, 500),
           from: {
             id: fromUserId,

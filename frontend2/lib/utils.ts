@@ -5,7 +5,17 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number): string {
+// Funzioni per gestire i centesimi
+export function centsToAmount(cents: number): number {
+  return cents / 100
+}
+
+export function amountToCents(amount: number): number {
+  return Math.round(amount * 100)
+}
+
+export function formatCurrency(cents: number): string {
+  const amount = centsToAmount(cents)
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -20,4 +30,9 @@ export function formatDate(date: Date): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date)
+}
+
+// Funzione per validare i centesimi
+export function isValidCents(cents: number): boolean {
+  return Number.isInteger(cents) && cents >= 0
 }

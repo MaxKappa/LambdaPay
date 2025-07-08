@@ -134,7 +134,7 @@ export default function TransactionsClient() {
   })
 
   const filteredTransactions = sortedTransactions.filter((transaction) => {
-    const amount = Number.parseFloat(transaction.amount.N)
+    const amount = parseInt(transaction.amount.N) // Ora è in centesimi
     const isOutgoing = amount < 0
 
     // Apply filter

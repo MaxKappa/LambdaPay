@@ -9,14 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Loader2, Send, CheckCircle } from "lucide-react"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, amountToCents, centsToAmount } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 
 interface TransferModalProps {
   open: boolean
   onClose: () => void
   onSuccess: () => void
-  currentBalance: number
+  currentBalance: number // Ora è in centesimi
 }
 
 export default function TransferModal({ open, onClose, onSuccess, currentBalance }: TransferModalProps) {
@@ -41,7 +41,9 @@ export default function TransferModal({ open, onClose, onSuccess, currentBalance
       return
     }
 
-    if (numericAmount > currentBalance) {
+    const amountInCents = amountToCents(numericAmount)
+
+    if (amountInCents > currentBalance) {
       toast({
         variant: "destructive",
         title: "Insufficient balance",
@@ -62,13 +64,13 @@ export default function TransferModal({ open, onClose, onSuccess, currentBalance
     }
 
     try {
-      const result = await transfer(numericAmount, recipientEmail)
+      const result = await transfer(amountInCents, recipientEmail)
       
       if (result.success) {
         setSuccess(true)
         toast({
           title: "✅ Transfer successful",
-          description: `Successfully transferred ${formatCurrency(numericAmount)} to ${recipientEmail}.`,
+          description: `Successfully transferred ${formatCurrency(amountInCents)} to ${recipientEmail}.`,
           duration: 3000,
         })
         setTimeout(() => {
@@ -109,7 +111,7 @@ export default function TransferModal({ open, onClose, onSuccess, currentBalance
             <CheckCircle className="h-16 w-16 text-green-600 mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Transfer Successful!</h3>
             <p className="text-gray-600 text-center">
-              {formatCurrency(Number.parseFloat(amount))} has been sent to {recipientEmail}
+              {formatCurrency(amountToCents(Number.parseFloat(amount)))} has been sent to {recipientEmail}
             </p>
           </div>
         </DialogContent>
@@ -151,7 +153,7 @@ export default function TransferModal({ open, onClose, onSuccess, currentBalance
                 type="number"
                 step="0.01"
                 min="0.01"
-                max={currentBalance}
+                max={centsToAmount(currentBalance)}
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}

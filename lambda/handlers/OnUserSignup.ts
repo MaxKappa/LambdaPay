@@ -5,12 +5,13 @@ const TABLE = process.env.BALANCE_TABLE!;
 
 export const handler = async (event: any) => {
   const userId = event.request.userAttributes.sub;
+  const WELCOME_BONUS_CENTS = 2000; // 20 dollari in centesimi
   try {
     await db.send(new PutItemCommand({
       TableName: TABLE,
       Item: {
         userId: { S: userId },
-        balance: { N: "20" }
+        balance: { N: WELCOME_BONUS_CENTS.toString() }
       },
       ConditionExpression: "attribute_not_exists(userId)"
     }));

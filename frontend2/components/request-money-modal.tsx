@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Loader2, HandCoins, CheckCircle } from "lucide-react"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, amountToCents } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 
 interface RequestMoneyModalProps {
@@ -53,13 +53,14 @@ export default function RequestMoneyModal({ open, onClose, onSuccess }: RequestM
     }
 
     try {
-      const result = await requestMoney(numericAmount, recipientEmail, message)
+      const amountInCents = amountToCents(numericAmount)
+      const result = await requestMoney(amountInCents, recipientEmail, message)
       
       if (result.success) {
         setSuccess(true)
         toast({
           title: "💳 Request sent",
-          description: `Money request for ${formatCurrency(numericAmount)} sent to ${recipientEmail}.`,
+          description: `Money request for ${formatCurrency(amountInCents)} sent to ${recipientEmail}.`,
           duration: 3000,
         })
         setTimeout(() => {
@@ -101,7 +102,7 @@ export default function RequestMoneyModal({ open, onClose, onSuccess }: RequestM
             <CheckCircle className="h-16 w-16 text-green-600 mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Request Sent!</h3>
             <p className="text-gray-600 text-center">
-              Your request for {formatCurrency(Number.parseFloat(amount))} has been sent to {recipientEmail}
+              Your request for {formatCurrency(amountToCents(Number.parseFloat(amount)))} has been sent to {recipientEmail}
             </p>
           </div>
         </DialogContent>

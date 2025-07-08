@@ -43,28 +43,28 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Validazione del tipo di dato amount - deve essere numerico e convertibile
-  if (typeof amount !== 'number' && typeof amount !== 'string') {
+  // Validazione del tipo di dato amount - deve essere un numero intero (centesimi)
+  if (typeof amount !== 'number') {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Amount deve essere un numero' }),
+      body: JSON.stringify({ message: 'Amount deve essere un numero intero (centesimi)' }),
     };
   }
 
-  const numericAmount = Number(amount);
+  const amountInCents = amount;
 
   // Validazione robusta dell'amount
-  if (isNaN(numericAmount) || !isFinite(numericAmount)) {
+  if (!Number.isInteger(amountInCents) || !isFinite(amountInCents)) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Amount non è un numero valido' }),
+      body: JSON.stringify({ message: 'Amount deve essere un numero intero (centesimi)' }),
     };
   }
 
   // Validazione di sicurezza: l'importo deve essere strettamente positivo
-  if (numericAmount <= 0) {
+  if (amountInCents <= 0) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
@@ -72,22 +72,13 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Validazione precisione decimale (massimo 2 cifre decimali per valori monetari)
-  if (Math.round(numericAmount * 100) !== numericAmount * 100) {
-    return {
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      statusCode: 400,
-      body: JSON.stringify({ message: 'L\'importo può avere massimo 2 cifre decimali' }),
-    };
-  }
-
-  // Validazione di sicurezza: limite massimo per importo (es. 1 milione)
+  // Validazione limite massimo (1 milione di centesimi = 10.000 euro)
   const MAX_TRANSFER_AMOUNT = 1000000;
-  if (numericAmount > MAX_TRANSFER_AMOUNT) {
+  if (amountInCents > MAX_TRANSFER_AMOUNT) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: `L'importo non può superare ${MAX_TRANSFER_AMOUNT.toLocaleString('it-IT')} euro` }),
+      body: JSON.stringify({ message: `L'importo non può superare ${(MAX_TRANSFER_AMOUNT / 100).toLocaleString('it-IT')} euro` }),
     };
   }
 
@@ -106,8 +97,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     TableName: BALANCE_TABLE,
     Key: { userId: { S: senderId } }
   }));
-  const senderBalance = parseFloat(senderBalanceRes.Item?.balance?.N ?? '0');
-  if (senderBalance < numericAmount) {
+  const senderBalance = parseInt(senderBalanceRes.Item?.balance?.N ?? '0');
+  if (senderBalance < amountInCents) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
@@ -157,7 +148,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Key: { userId: { S: senderId } },
             UpdateExpression: 'SET balance = if_not_exists(balance, :zero) - :amt',
             ExpressionAttributeValues: { 
-              ':amt': { N: Math.abs(numericAmount).toString() }, // Forza valore assoluto per sicurezza
+              ':amt': { N: Math.abs(amountInCents).toString() }, // Forza valore assoluto per sicurezza
               ':zero': { N: '0' } 
             },
             ConditionExpression: 'balance >= :amt AND :amt > :zero' // Doppia verifica
@@ -169,7 +160,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Key: { userId: { S: resolvedRecipientId } },
             UpdateExpression: 'SET balance = if_not_exists(balance, :zero) + :amt',
             ExpressionAttributeValues: { 
-              ':amt': { N: Math.abs(numericAmount).toString() }, // Forza valore assoluto per sicurezza
+              ':amt': { N: Math.abs(amountInCents).toString() }, // Forza valore assoluto per sicurezza
               ':zero': { N: '0' } 
             },
             ConditionExpression: ':amt > :zero' // Verifica che l'amount sia positivo
@@ -181,7 +172,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Item: {
               userId: { S: senderId },
               transactionId: { S: transactionId },
-              amount: { N: (-Math.abs(numericAmount)).toString() }, // Forza negativo assoluto
+              amount: { N: (-Math.abs(amountInCents)).toString() }, // Forza negativo assoluto
               date: { S: now },
               to: { S: resolvedRecipientId },
               toEmail: { S: recipientId },
@@ -195,7 +186,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Item: {
               userId: { S: resolvedRecipientId },
               transactionId: { S: transactionId },
-              amount: { N: Math.abs(numericAmount).toString() }, // Forza positivo assoluto
+              amount: { N: Math.abs(amountInCents).toString() }, // Forza positivo assoluto
               date: { S: now },
               from: { S: senderId },
               fromEmail: { S: event.requestContext.authorizer?.claims.email || '' },
@@ -216,7 +207,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         type: 'TRANSACTION',
         data: {
           type: 'RECEIVED',
-          amount: numericAmount,
+          amount: amountInCents,
           from: {
             id: senderId,
             email: senderEmail,
@@ -233,7 +224,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         type: 'TRANSACTION',
         data: {
           type: 'SENT',
-          amount: numericAmount,
+          amount: amountInCents,
           to: {
             id: resolvedRecipientId,
             email: recipientId,
@@ -261,14 +252,14 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         notifier.notifyUser(senderId, {
           type: 'BALANCE_UPDATE',
           data: {
-            balance: parseFloat(updatedSenderBalance.Item?.balance?.N ?? '0')
+            balance: parseInt(updatedSenderBalance.Item?.balance?.N ?? '0')
           },
           timestamp: now
         }),
         notifier.notifyUser(resolvedRecipientId, {
           type: 'BALANCE_UPDATE',
           data: {
-            balance: parseFloat(updatedRecipientBalance.Item?.balance?.N ?? '0')
+            balance: parseInt(updatedRecipientBalance.Item?.balance?.N ?? '0')
           },
           timestamp: now
         })

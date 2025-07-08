@@ -170,7 +170,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       TableName: BALANCE_TABLE,
       Key: { userId: { S: userId } }
     }));
-    const payerBalance = parseFloat(payerBalanceRes.Item?.balance?.N ?? '0');
+    const payerBalance = parseInt(payerBalanceRes.Item?.balance?.N ?? '0');
     
     if (payerBalance < amount) {
       return {
