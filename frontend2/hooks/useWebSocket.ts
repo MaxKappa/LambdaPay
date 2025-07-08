@@ -18,7 +18,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
   const reconnectDelay = 3000; // 3 secondi
@@ -55,7 +55,17 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       console.log('Creando nuova connessione WebSocket...');
       wsRef.current = new WebSocket(wsUrl);
 
+      // Timeout per la connessione
+      const connectionTimeout = setTimeout(() => {
+        if (wsRef.current?.readyState === WebSocket.CONNECTING) {
+          console.warn('Timeout connessione WebSocket');
+          wsRef.current?.close();
+          setConnectionStatus('error');
+        }
+      }, 10000); // 10 secondi timeout
+
       wsRef.current.onopen = () => {
+        clearTimeout(connectionTimeout);
         console.log('✅ WebSocket connesso con successo');
         setIsConnected(true);
         setConnectionStatus('connected');
@@ -89,24 +99,61 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       };
 
       wsRef.current.onerror = (error) => {
-        console.error('❌ Errore WebSocket:', {
+        // Verifica se è un errore significativo
+        const errorDetails = {
           type: error.type,
           target: error.target ? {
             readyState: (error.target as any).readyState,
             url: (error.target as any).url
           } : 'unknown'
-        });
-        setConnectionStatus('error');
-        options.onError?.(error);
+        };
+        
+        // Solo logga errori significativi, non eventi generici "error"
+        // che vengono generati normalmente durante le connessioni WebSocket
+        if (error.type && error.type !== 'error') {
+          console.error('❌ Errore WebSocket specifico:', errorDetails);
+        } else if (wsRef.current?.readyState === WebSocket.CLOSED || wsRef.current?.readyState === WebSocket.CLOSING) {
+          // Logga solo se la connessione è realmente chiusa/in chiusura
+          console.error('❌ Errore WebSocket (connessione chiusa):', errorDetails);
+        } else {
+          // Eventi normali durante la connessione - non loggare come errori
+          console.debug('🔧 Evento WebSocket (normale):', errorDetails);
+        }
+        
+        // Solo imposta stato di errore se è un errore reale
+        if (wsRef.current?.readyState === WebSocket.CLOSED || wsRef.current?.readyState === WebSocket.CLOSING) {
+          setConnectionStatus('error');
+        }
+        
+        // Solo chiama onError per errori significativi
+        if (error.type && error.type !== 'error') {
+          options.onError?.(error);
+        }
       };
 
       wsRef.current.onmessage = (event) => {
         try {
+          // Verifica che il messaggio non sia vuoto
+          if (!event.data || event.data.trim() === '') {
+            console.debug('Messaggio WebSocket vuoto ricevuto');
+            return;
+          }
+
           const notification: WebSocketNotification = JSON.parse(event.data);
           console.log('📨 Notifica WebSocket ricevuta:', notification);
+          
+          // Verifica che la notifica abbia i campi richiesti
+          if (!notification.type || !notification.timestamp) {
+            console.warn('Notifica WebSocket malformata:', notification);
+            return;
+          }
+          
           options.onNotification?.(notification);
         } catch (error) {
-          console.error('❌ Errore nel parsing del messaggio WebSocket:', error);
+          console.error('❌ Errore nel parsing del messaggio WebSocket:', {
+            error: error instanceof Error ? error.message : 'Errore sconosciuto',
+            rawData: event.data
+          });
         }
       };
 
@@ -117,12 +164,23 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   };
 
   const disconnect = () => {
+    // Cleanup timeout di riconnessione
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = undefined;
     }
     
+    // Chiudi connessione WebSocket
     if (wsRef.current) {
-      wsRef.current.close(1000, 'Disconnessione volontaria');
+      // Rimuovi i listener per evitare eventi durante la chiusura
+      wsRef.current.onopen = null;
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
+      wsRef.current.onmessage = null;
+      
+      if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
+        wsRef.current.close(1000, 'Disconnessione volontaria');
+      }
       wsRef.current = null;
     }
     

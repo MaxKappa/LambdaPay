@@ -102,7 +102,12 @@ export default function DashboardClient() {
       console.log('WebSocket disconnesso - Notifiche real-time non disponibili')
     },
     onError: (error) => {
-      console.error('Errore WebSocket:', error)
+      // Solo logga errori significativi
+      if (error.type && error.type !== 'error') {
+        console.error('Errore WebSocket:', error);
+      } else {
+        console.debug('Evento WebSocket (non critico):', error);
+      }
     }
   })
 
