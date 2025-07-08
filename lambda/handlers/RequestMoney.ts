@@ -2,6 +2,7 @@ import { APIGatewayProxyHandler } from 'aws-lambda';
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { CognitoIdentityProviderClient, ListUsersCommand } from "@aws-sdk/client-cognito-identity-provider";
 import { v4 as uuidv4 } from 'uuid';
+import { createWebSocketNotifier } from '../utils/websocketNotifier';
 
 const db = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-west-1' });
 const cognito = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-west-1' });
@@ -178,6 +179,31 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         toUsername: { S: toUsername || recipientEmail.split('@')[0] }
       }
     }));
+
+    // Invia notifica WebSocket real-time al destinatario della richiesta
+    try {
+      const notifier = createWebSocketNotifier();
+      
+      await notifier.notifyUser(toUserId, {
+        type: 'REQUEST',
+        data: {
+          type: 'NEW_REQUEST',
+          requestId,
+          amount: numericAmount,
+          message: (message || '').substring(0, 500),
+          from: {
+            id: fromUserId,
+            email: fromEmail,
+            username: fromUsername
+          },
+          timestamp: now
+        },
+        timestamp: now
+      });
+    } catch (notificationError) {
+      console.error('Errore nell\'invio della notifica WebSocket per nuova richiesta:', notificationError);
+      // Non blocchiamo la risposta se la notifica fallisce
+    }
 
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },

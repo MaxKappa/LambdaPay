@@ -1,6 +1,7 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { DynamoDBClient, GetItemCommand, TransactWriteItemsCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
+import { createWebSocketNotifier } from '../utils/websocketNotifier';
 
 const db = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-west-1' });
 const REQUESTS_TABLE = process.env.REQUESTS_TABLE!;
@@ -133,6 +134,30 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         }
       }));
 
+      // Invia notifica WebSocket di richiesta rifiutata
+      try {
+        const notifier = createWebSocketNotifier();
+        
+        // Notifica al richiedente che la richiesta è stata rifiutata
+        await notifier.notifyUser(fromUserId, {
+          type: 'REQUEST',
+          data: {
+            type: 'REJECTED',
+            requestId,
+            amount,
+            from: {
+              id: userId,
+              email: userEmail,
+              username
+            },
+            timestamp: now
+          },
+          timestamp: now
+        });
+      } catch (notificationError) {
+        console.error('Errore nell\'invio della notifica WebSocket per rifiuto:', notificationError);
+      }
+
       return {
         headers: { 'Access-Control-Allow-Origin': '*' },
         statusCode: 200,
@@ -234,6 +259,96 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         }
       ]
     }));
+
+    // Invia notifiche WebSocket real-time per accettazione richiesta
+    try {
+      const notifier = createWebSocketNotifier();
+      
+      // Notifica al richiedente che la richiesta è stata accettata e il pagamento ricevuto
+      await notifier.notifyUser(fromUserId, {
+        type: 'REQUEST',
+        data: {
+          type: 'ACCEPTED',
+          requestId,
+          amount,
+          from: {
+            id: userId,
+            email: userEmail,
+            username
+          },
+          transactionId,
+          timestamp: now
+        },
+        timestamp: now
+      });
+
+      // Notifica al richiedente anche della transazione ricevuta
+      await notifier.notifyUser(fromUserId, {
+        type: 'TRANSACTION',
+        data: {
+          type: 'RECEIVED',
+          amount,
+          from: {
+            id: userId,
+            email: userEmail,
+            username
+          },
+          transactionId,
+          timestamp: now,
+          source: 'REQUEST'
+        },
+        timestamp: now
+      });
+
+      // Notifica al pagatore della transazione inviata
+      await notifier.notifyUser(userId, {
+        type: 'TRANSACTION',
+        data: {
+          type: 'SENT',
+          amount,
+          to: {
+            id: fromUserId,
+            email: request.fromEmail.S!,
+            username: request.fromUsername.S!
+          },
+          transactionId,
+          timestamp: now,
+          source: 'REQUEST'
+        },
+        timestamp: now
+      });
+
+      // Notifica aggiornamento saldo a entrambi
+      const [updatedPayerBalance, updatedReceiverBalance] = await Promise.all([
+        db.send(new GetItemCommand({
+          TableName: BALANCE_TABLE,
+          Key: { userId: { S: userId } }
+        })),
+        db.send(new GetItemCommand({
+          TableName: BALANCE_TABLE,
+          Key: { userId: { S: fromUserId } }
+        }))
+      ]);
+
+      await Promise.all([
+        notifier.notifyUser(userId, {
+          type: 'BALANCE_UPDATE',
+          data: {
+            balance: parseFloat(updatedPayerBalance.Item?.balance?.N ?? '0')
+          },
+          timestamp: now
+        }),
+        notifier.notifyUser(fromUserId, {
+          type: 'BALANCE_UPDATE',
+          data: {
+            balance: parseFloat(updatedReceiverBalance.Item?.balance?.N ?? '0')
+          },
+          timestamp: now
+        })
+      ]);
+    } catch (notificationError) {
+      console.error('Errore nell\'invio delle notifiche WebSocket per accettazione:', notificationError);
+    }
 
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },

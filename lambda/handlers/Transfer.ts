@@ -2,6 +2,7 @@ import { APIGatewayProxyHandler } from 'aws-lambda';
 import { DynamoDBClient, TransactWriteItemsCommand, GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
 import { CognitoIdentityProviderClient, ListUsersCommand } from "@aws-sdk/client-cognito-identity-provider";
+import { createWebSocketNotifier } from '../utils/websocketNotifier';
 
 const db = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-west-1' });
 const cognito = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-west-1' });
@@ -204,6 +205,79 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         }
       ]
     }));
+    
+    // Invia notifiche WebSocket real-time
+    try {
+      const notifier = createWebSocketNotifier();
+      const senderUsername = event.requestContext.authorizer?.claims.preferred_username || senderEmail?.split('@')[0] || 'Utente';
+      
+      // Notifica al destinatario del pagamento ricevuto
+      await notifier.notifyUser(resolvedRecipientId, {
+        type: 'TRANSACTION',
+        data: {
+          type: 'RECEIVED',
+          amount: numericAmount,
+          from: {
+            id: senderId,
+            email: senderEmail,
+            username: senderUsername
+          },
+          transactionId,
+          timestamp: now
+        },
+        timestamp: now
+      });
+
+      // Notifica al mittente della conferma di invio
+      await notifier.notifyUser(senderId, {
+        type: 'TRANSACTION',
+        data: {
+          type: 'SENT',
+          amount: numericAmount,
+          to: {
+            id: resolvedRecipientId,
+            email: recipientId,
+            username: resolvedUsername
+          },
+          transactionId,
+          timestamp: now
+        },
+        timestamp: now
+      });
+
+      // Notifica aggiornamento saldo a entrambi
+      const [updatedSenderBalance, updatedRecipientBalance] = await Promise.all([
+        db.send(new GetItemCommand({
+          TableName: BALANCE_TABLE,
+          Key: { userId: { S: senderId } }
+        })),
+        db.send(new GetItemCommand({
+          TableName: BALANCE_TABLE,
+          Key: { userId: { S: resolvedRecipientId } }
+        }))
+      ]);
+
+      await Promise.all([
+        notifier.notifyUser(senderId, {
+          type: 'BALANCE_UPDATE',
+          data: {
+            balance: parseFloat(updatedSenderBalance.Item?.balance?.N ?? '0')
+          },
+          timestamp: now
+        }),
+        notifier.notifyUser(resolvedRecipientId, {
+          type: 'BALANCE_UPDATE',
+          data: {
+            balance: parseFloat(updatedRecipientBalance.Item?.balance?.N ?? '0')
+          },
+          timestamp: now
+        })
+      ]);
+    } catch (notificationError) {
+      console.error('Errore nell\'invio delle notifiche WebSocket:', notificationError);
+      // Non blocchiamo la risposta se le notifiche falliscono
+    }
+    
     return { headers: { 'Access-Control-Allow-Origin': '*' }, statusCode: 200, body: JSON.stringify({ message: 'Transfer completed' }) };
   } catch (err: any) {
     console.error('Errore durante il trasferimento:', err);

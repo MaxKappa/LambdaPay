@@ -20,6 +20,11 @@ provider:
       Ref: BalanceDynamoTable
     REQUESTS_TABLE:
       Ref: RequestsDynamoTable
+    CONNECTIONS_TABLE:
+      Ref: ConnectionsDynamoTable
+    WEBSOCKET_API_ID:
+      Ref: WebsocketsApi
+    STAGE: ${self:provider.stage}
 
   iamRoleStatements:
     - Effect: Allow
@@ -40,6 +45,9 @@ provider:
         - Fn::GetAtt:
             - RequestsDynamoTable
             - Arn
+        - Fn::GetAtt:
+            - ConnectionsDynamoTable
+            - Arn
         - Fn::Sub:
             - "${TableArn}/index/*"
             - TableArn:
@@ -58,6 +66,12 @@ provider:
                 Fn::GetAtt:
                   - RequestsDynamoTable
                   - Arn
+    - Effect: Allow
+      Action:
+        - execute-api:ManageConnections
+      Resource:
+        - Fn::Sub: "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/POST/@connections/*"
+        - Fn::Sub: "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/*"
     - Effect: Allow
       Action:
         - cognito-idp:ListUsers
@@ -155,6 +169,28 @@ functions:
           existing: true
           forceDeploy: true
 
+  # WebSocket handlers
+  websocketConnect:
+    handler: lambda/handlers/websocket/Connect.handler
+    description: Handle WebSocket connections
+    events:
+      - websocket:
+          route: $connect
+
+  websocketDisconnect:
+    handler: lambda/handlers/websocket/Disconnect.handler
+    description: Handle WebSocket disconnections
+    events:
+      - websocket:
+          route: $disconnect
+
+  websocketDefault:
+    handler: lambda/handlers/websocket/Default.handler
+    description: Handle WebSocket default messages
+    events:
+      - websocket:
+          route: $default
+
 
 
 resources:
@@ -248,3 +284,33 @@ resources:
             Projection:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
+
+    ConnectionsDynamoTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-connections-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: connectionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: connectionId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+
+  Outputs:
+    WebSocketApiId:
+      Description: "WebSocket API ID"
+      Value:
+        Ref: WebsocketsApi
+      Export:
+        Name: ${self:service}-${self:provider.stage}-websocket-api-id
+    
+    WebSocketApiUrl:
+      Description: "WebSocket API URL"
+      Value:
+        Fn::Sub: "wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
+      Export:
+        Name: ${self:service}-${self:provider.stage}-websocket-url

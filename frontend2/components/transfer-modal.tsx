@@ -67,8 +67,9 @@ export default function TransferModal({ open, onClose, onSuccess, currentBalance
       if (result.success) {
         setSuccess(true)
         toast({
-          title: "Transfer successful",
-          description: `Successfully transferred ${formatCurrency(numericAmount)} to ${recipientEmail}`,
+          title: "✅ Transfer successful",
+          description: `Successfully transferred ${formatCurrency(numericAmount)} to ${recipientEmail}. Real-time updates active!`,
+          duration: 3000,
         })
         setTimeout(() => {
           setSuccess(false)

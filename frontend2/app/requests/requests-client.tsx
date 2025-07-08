@@ -7,10 +7,11 @@ import { getRequests, handleRequest } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Loader2, Check, X, HandCoins, Send, Clock } from "lucide-react"
+import { ArrowLeft, Loader2, Check, X, HandCoins, Send, Clock, Wifi, WifiOff } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 import { configureAmplify } from "@/lib/amplify-config"
+import { useWebSocket, WebSocketNotification } from "@/hooks/useWebSocket"
 
 interface MoneyRequest {
   requestId: { S: string }
@@ -35,6 +36,52 @@ export default function RequestsClient() {
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [error, setError] = useState("")
   const router = useRouter()
+
+  // Configurazione WebSocket per aggiornamenti real-time delle richieste
+  const { isConnected } = useWebSocket({
+    onNotification: (notification: WebSocketNotification) => {
+      if (notification.type === 'REQUEST') {
+        // Ricarica le richieste quando arriva una nuova richiesta o aggiornamento
+        loadRequests()
+        
+        // Mostra notifica toast
+        const requestData = notification.data
+        if (requestData.type === 'NEW_REQUEST') {
+          toast({
+            title: "💳 Nuova richiesta di denaro",
+            description: `${requestData.from.username || requestData.from.email} ti ha chiesto ${formatCurrency(requestData.amount)}`,
+            duration: 5000,
+          })
+        } else if (requestData.type === 'ACCEPTED') {
+          toast({
+            title: "✅ Richiesta accettata!",
+            description: `La tua richiesta di ${formatCurrency(requestData.amount)} è stata accettata`,
+            duration: 5000,
+          })
+        } else if (requestData.type === 'REJECTED') {
+          toast({
+            title: "❌ Richiesta rifiutata",
+            description: `La tua richiesta di ${formatCurrency(requestData.amount)} è stata rifiutata`,
+            duration: 5000,
+          })
+        }
+      }
+    }
+  })
+
+  const loadRequests = async () => {
+    try {
+      const [received, sent] = await Promise.all([
+        getRequests('received'),
+        getRequests('sent')
+      ])
+      setReceivedRequests(received)
+      setSentRequests(sent)
+    } catch (error) {
+      console.error("Error loading requests:", error)
+      setError("Failed to load requests")
+    }
+  }
 
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
@@ -76,20 +123,6 @@ export default function RequestsClient() {
 
     checkAuthAndLoadData()
   }, [router])
-
-  const loadRequests = async () => {
-    try {
-      const [received, sent] = await Promise.all([
-        getRequests('received'),
-        getRequests('sent')
-      ])
-      setReceivedRequests(received)
-      setSentRequests(sent)
-    } catch (error: any) {
-      console.error("Error loading requests:", error)
-      setError("Failed to load requests. Please try again.")
-    }
-  }
 
   const handleRespond = async (requestId: string, action: 'ACCEPT' | 'REJECT') => {
     setProcessingId(requestId)
@@ -193,12 +226,27 @@ export default function RequestsClient() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16">
-            <Button variant="ghost" onClick={() => router.back()} className="mr-4">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-            <h1 className="text-xl font-semibold text-gray-900">Money Requests</h1>
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center">
+              <Button variant="ghost" onClick={() => router.back()} className="mr-4">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <h1 className="text-xl font-semibold text-gray-900">Money Requests</h1>
+            </div>
+            
+            {/* Indicatore connessione WebSocket */}
+            <div 
+              className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
+                isConnected 
+                  ? "bg-green-100 text-green-800" 
+                  : "bg-red-100 text-red-800"
+              }`}
+              title={isConnected ? "Notifiche real-time attive" : "Notifiche real-time non disponibili"}
+            >
+              {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              <span>{isConnected ? "Live" : "Offline"}</span>
+            </div>
           </div>
         </div>
       </header>

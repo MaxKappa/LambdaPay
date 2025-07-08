@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { ArrowUpRight, ArrowDownLeft, ArrowLeft, Search, Filter, Loader2 } from "lucide-react"
+import { ArrowUpRight, ArrowDownLeft, ArrowLeft, Search, Filter, Loader2, Wifi, WifiOff } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { configureAmplify } from "@/lib/amplify-config"
+import { useWebSocket, WebSocketNotification } from "@/hooks/useWebSocket"
+import { toast } from "@/hooks/use-toast"
 
 interface Transaction {
   transactionId: { S: string }
@@ -32,6 +34,41 @@ export default function TransactionsClient() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
+  // Configurazione WebSocket per aggiornamenti real-time delle transazioni
+  const { isConnected } = useWebSocket({
+    onNotification: (notification: WebSocketNotification) => {
+      if (notification.type === 'TRANSACTION') {
+        // Ricarica le transazioni quando arriva una nuova transazione
+        loadTransactions()
+        
+        // Mostra notifica toast
+        const transactionData = notification.data
+        if (transactionData.type === 'RECEIVED') {
+          toast({
+            title: "💰 Pagamento ricevuto!",
+            description: `Hai ricevuto ${formatCurrency(transactionData.amount)} da ${transactionData.from.username || transactionData.from.email}`,
+            duration: 5000,
+          })
+        } else if (transactionData.type === 'SENT') {
+          toast({
+            title: "✅ Pagamento inviato!",
+            description: `Hai inviato ${formatCurrency(transactionData.amount)} a ${transactionData.to.username || transactionData.to.email}`,
+            duration: 5000,
+          })
+        }
+      }
+    }
+  })
+
+  const loadTransactions = async () => {
+    try {
+      const userTransactions = await getTransactions()
+      setTransactions(userTransactions)
+    } catch (error) {
+      console.error("Error loading transactions:", error)
+    }
+  }
+
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
@@ -47,9 +84,7 @@ export default function TransactionsClient() {
 
         setUser(currentUser)
 
-        const userTransactions = await getTransactions().catch(() => [])
-        console.log("Transactions loaded:", userTransactions)
-        setTransactions(userTransactions)
+        await loadTransactions()
       } catch (error: any) {
         console.error("Authentication or data loading error:", error)
         // Se l'errore è legato alla configurazione di Amplify, prova a riconfigurare
@@ -60,8 +95,7 @@ export default function TransactionsClient() {
             const currentUser = await getCurrentUser()
             if (currentUser) {
               setUser(currentUser)
-              const userTransactions = await getTransactions().catch(() => [])
-              setTransactions(userTransactions)
+              await loadTransactions()
               return
             }
           } catch (retryError) {
@@ -127,12 +161,27 @@ export default function TransactionsClient() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16">
-            <Button variant="ghost" onClick={() => router.back()} className="mr-4">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-            <h1 className="text-xl font-semibold text-gray-900">Transaction History</h1>
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center">
+              <Button variant="ghost" onClick={() => router.back()} className="mr-4">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <h1 className="text-xl font-semibold text-gray-900">Transaction History</h1>
+            </div>
+            
+            {/* Indicatore connessione WebSocket */}
+            <div 
+              className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
+                isConnected 
+                  ? "bg-green-100 text-green-800" 
+                  : "bg-red-100 text-red-800"
+              }`}
+              title={isConnected ? "Aggiornamenti real-time attivi" : "Aggiornamenti real-time non disponibili"}
+            >
+              {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              <span>{isConnected ? "Live" : "Offline"}</span>
+            </div>
           </div>
         </div>
       </header>

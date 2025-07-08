@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { ArrowUpRight, ArrowDownLeft, Send, History, LogOut, RefreshCw, DollarSign, Loader2, HandCoins, MessageSquare } from "lucide-react"
+import { ArrowUpRight, ArrowDownLeft, Send, History, LogOut, RefreshCw, DollarSign, Loader2, HandCoins, MessageSquare, Wifi, WifiOff } from "lucide-react"
 import TransferModal from "@/components/transfer-modal"
 import RequestMoneyModal from "@/components/request-money-modal"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 import { configureAmplify } from "@/lib/amplify-config"
+import { useWebSocket, WebSocketNotification } from "@/hooks/useWebSocket"
 
 interface Transaction {
   transactionId: { S: string }
@@ -37,6 +38,73 @@ export default function DashboardClient() {
   const [transferModalOpen, setTransferModalOpen] = useState(false)
   const [requestModalOpen, setRequestModalOpen] = useState(false)
   const router = useRouter()
+
+  // Configurazione WebSocket per notifiche real-time
+  const { isConnected, connectionStatus } = useWebSocket({
+    onNotification: (notification: WebSocketNotification) => {
+      console.log('Notifica WebSocket ricevuta:', notification)
+      
+      switch (notification.type) {
+        case 'TRANSACTION':
+          // Aggiorna automaticamente le transazioni quando arriva un pagamento
+          refreshData()
+          
+          // Mostra notifica toast
+          const transactionData = notification.data
+          if (transactionData.type === 'RECEIVED') {
+            toast({
+              title: "💰 Pagamento ricevuto!",
+              description: `Hai ricevuto ${formatCurrency(transactionData.amount)} da ${transactionData.from.username || transactionData.from.email}`,
+              duration: 5000,
+            })
+          } else if (transactionData.type === 'SENT') {
+            toast({
+              title: "✅ Pagamento inviato!",
+              description: `Hai inviato ${formatCurrency(transactionData.amount)} a ${transactionData.to.username || transactionData.to.email}`,
+              duration: 5000,
+            })
+          }
+          break
+          
+        case 'REQUEST':
+          const requestData = notification.data
+          if (requestData.type === 'NEW_REQUEST') {
+            toast({
+              title: "💳 Nuova richiesta di denaro",
+              description: `${requestData.from.username || requestData.from.email} ti ha chiesto ${formatCurrency(requestData.amount)}`,
+              duration: 5000,
+            })
+          } else if (requestData.type === 'ACCEPTED') {
+            toast({
+              title: "✅ Richiesta accettata!",
+              description: `La tua richiesta di ${formatCurrency(requestData.amount)} è stata accettata`,
+              duration: 5000,
+            })
+          } else if (requestData.type === 'REJECTED') {
+            toast({
+              title: "❌ Richiesta rifiutata",
+              description: `La tua richiesta di ${formatCurrency(requestData.amount)} è stata rifiutata`,
+              duration: 5000,
+            })
+          }
+          break
+          
+        case 'BALANCE_UPDATE':
+          // Aggiorna solo il saldo per maggiore efficienza
+          setBalance(notification.data.balance.toString())
+          break
+      }
+    },
+    onConnect: () => {
+      console.log('WebSocket connesso - Notifiche real-time attive')
+    },
+    onDisconnect: () => {
+      console.log('WebSocket disconnesso - Notifiche real-time non disponibili')
+    },
+    onError: (error) => {
+      console.error('Errore WebSocket:', error)
+    }
+  })
 
   // Check authentication and load initial data
   useEffect(() => {
@@ -167,6 +235,19 @@ export default function DashboardClient() {
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Indicatore connessione WebSocket */}
+              <div 
+                className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
+                  isConnected 
+                    ? "bg-green-100 text-green-800" 
+                    : "bg-red-100 text-red-800"
+                }`}
+                title={isConnected ? "Notifiche real-time attive" : "Notifiche real-time non disponibili"}
+              >
+                {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                <span>{isConnected ? "Live" : "Offline"}</span>
+              </div>
+
               <Button variant="ghost" size="icon" onClick={refreshData} disabled={dataLoading}>
                 <RefreshCw className={`h-4 w-4 ${dataLoading ? "animate-spin" : ""}`} />
               </Button>

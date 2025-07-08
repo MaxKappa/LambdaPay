@@ -58,8 +58,9 @@ export default function RequestMoneyModal({ open, onClose, onSuccess }: RequestM
       if (result.success) {
         setSuccess(true)
         toast({
-          title: "Request sent",
-          description: `Money request for ${formatCurrency(numericAmount)} sent to ${recipientEmail}`,
+          title: "💳 Request sent",
+          description: `Money request for ${formatCurrency(numericAmount)} sent to ${recipientEmail}. They will receive a real-time notification!`,
+          duration: 3000,
         })
         setTimeout(() => {
           setSuccess(false)
