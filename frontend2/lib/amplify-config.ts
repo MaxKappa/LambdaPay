@@ -1,6 +1,6 @@
 import { Amplify } from "aws-amplify"
 
-// Configurazione Amplify
+// Amplify configuration
 const amplifyConfig = {
   Auth: {
     Cognito: {

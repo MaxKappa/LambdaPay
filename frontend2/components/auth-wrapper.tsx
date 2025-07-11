@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser)
     } catch (error: any) {
       console.error("Error refreshing user:", error)
-      // Se l'errore è legato alla configurazione di Amplify, prova a riconfigurare
+      // If the error is related to Amplify configuration, try to reconfigure
       if (error.message?.includes("Auth UserPool not configured")) {
         try {
           configureAmplify()

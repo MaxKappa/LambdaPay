@@ -24,20 +24,19 @@ export class WebSocketNotifier {
    * Invia una notifica a un utente specifico
    */
   async notifyUser(userId: string, payload: NotificationPayload): Promise<void> {
-    try {
-      console.log(`Inviando notifica a utente ${userId}:`, JSON.stringify(payload));
+    try {        console.log(`Sending notification to user ${userId}:`, JSON.stringify(payload));
       
-      // Trova tutte le connessioni dell'utente
+      // Find all user connections
       const connections = await this.getUserConnections(userId);
       
       if (connections.length === 0) {
-        console.log(`Nessuna connessione WebSocket attiva per l'utente ${userId}`);
+        console.log(`No active WebSocket connections for user ${userId}`);
         return;
       }
 
-      console.log(`Trovate ${connections.length} connessioni per l'utente ${userId}:`, connections);
+      console.log(`Found ${connections.length} connections for user ${userId}:`, connections);
 
-      // Invia la notifica a tutte le connessioni dell'utente
+      // Send notification to all user connections
       const promises = connections.map(connectionId => 
         this.sendToConnection(connectionId, payload)
       );
@@ -46,9 +45,9 @@ export class WebSocketNotifier {
       const successful = results.filter(r => r.status === 'fulfilled').length;
       const failed = results.filter(r => r.status === 'rejected').length;
       
-      console.log(`Notifiche inviate - Successo: ${successful}, Fallimento: ${failed}`);
+      console.log(`Notifications sent - Success: ${successful}, Failed: ${failed}`);
     } catch (error) {
-      console.error(`Errore nell'invio della notifica all'utente ${userId}:`, error);
+      console.error(`Error sending notification to user ${userId}:`, error);
     }
   }
 
@@ -67,7 +66,7 @@ export class WebSocketNotifier {
 
       return result.Items?.map(item => item.connectionId.S!) || [];
     } catch (error) {
-      console.error(`Errore nel recuperare le connessioni per l'utente ${userId}:`, error);
+      console.error(`Error retrieving connections for user ${userId}:`, error);
       return [];
     }
   }
@@ -77,16 +76,16 @@ export class WebSocketNotifier {
    */
   private async sendToConnection(connectionId: string, payload: NotificationPayload): Promise<void> {
     try {
-      console.log(`Tentativo di invio notifica alla connessione ${connectionId}:`, JSON.stringify(payload));
+      console.log(`Attempting to send notification to connection ${connectionId}:`, JSON.stringify(payload));
       
       await this.apiGw.send(new PostToConnectionCommand({
         ConnectionId: connectionId,
         Data: JSON.stringify(payload)
       }));
 
-      console.log(`Notifica inviata con successo alla connessione ${connectionId}`);
+      console.log(`Notification sent successfully to connection ${connectionId}`);
     } catch (error: any) {
-      console.error(`Errore nell'invio alla connessione ${connectionId}:`, {
+      console.error(`Error sending to connection ${connectionId}:`, {
         error: error.message,
         statusCode: error.statusCode || error.$metadata?.httpStatusCode,
         code: error.code || error.name,
@@ -96,11 +95,11 @@ export class WebSocketNotifier {
       // Se la connessione è stale (410) o proibita (403), rimuovila dal database
       const statusCode = error.statusCode || error.$metadata?.httpStatusCode;
       if (statusCode === 410 || statusCode === 403 || error.name === 'GoneException' || error.name === 'ForbiddenException') {
-        console.log(`Connessione ${connectionId} non più valida (status: ${statusCode}), rimuovendola...`);
+        console.log(`Connection ${connectionId} no longer valid (status: ${statusCode}), removing...`);
         await this.removeStaleConnection(connectionId);
       }
       
-      // Re-throw per permettere la gestione a livello superiore
+      // Re-throw to allow handling at upper level
       throw error;
     }
   }
@@ -116,9 +115,9 @@ export class WebSocketNotifier {
           connectionId: { S: connectionId }
         }
       }));
-      console.log(`Connessione stale rimossa: ${connectionId}`);
+      console.log(`Stale connection removed: ${connectionId}`);
     } catch (error) {
-      console.error(`Errore nella rimozione della connessione stale ${connectionId}:`, error);
+      console.error(`Error removing stale connection ${connectionId}:`, error);
     }
   }
 }
@@ -142,8 +141,8 @@ export function createWebSocketNotifier(): WebSocketNotifier {
     throw new Error('WEBSOCKET_API_ID environment variable is required');
   }
   
-  // Endpoint per ApiGatewayManagementApi (diverso dal WebSocket endpoint)
+  // Endpoint for ApiGatewayManagementApi (different from WebSocket endpoint)
   const endpoint = `https://${apiId}.execute-api.${region}.amazonaws.com/${stage}`;
-  console.log(`Creando WebSocket notifier con endpoint: ${endpoint}`);
+  console.log(`Creating WebSocket notifier with endpoint: ${endpoint}`);
   return new WebSocketNotifier(endpoint);
 }

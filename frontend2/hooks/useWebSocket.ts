@@ -26,33 +26,33 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const connect = async () => {
     try {
       setConnectionStatus('connecting');
-      console.log('Iniziando connessione WebSocket...');
+      console.log('Starting WebSocket connection...');
       
-      // Ottieni le informazioni dell'utente autenticato
+      // Get authenticated user information
       const session = await fetchAuthSession();
       const userId = session.tokens?.idToken?.payload?.sub;
       
       if (!userId) {
-        console.error('UserId non disponibile per la connessione WebSocket');
+        console.error('UserId not available for WebSocket connection');
         setConnectionStatus('error');
         return;
       }
 
       const wsUrl = `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}?userId=${userId}`;
-      console.log('Connessione WebSocket a:', wsUrl);
+      console.log('WebSocket connection to:', wsUrl);
       
       if (wsRef.current?.readyState === WebSocket.OPEN) {
-        console.log('WebSocket già connesso');
+        console.log('WebSocket already connected');
         return;
       }
 
-      // Chiudi connessione esistente se presente
+      // Close existing connection if present
       if (wsRef.current) {
-        console.log('Chiudendo connessione WebSocket esistente');
+        console.log('Closing existing WebSocket connection');
         wsRef.current.close();
       }
 
-      console.log('Creando nuova connessione WebSocket...');
+      console.log('Creating new WebSocket connection...');
       wsRef.current = new WebSocket(wsUrl);
 
       // Timeout per la connessione
@@ -66,7 +66,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
       wsRef.current.onopen = () => {
         clearTimeout(connectionTimeout);
-        console.log('✅ WebSocket connesso con successo');
+        console.log('✅ WebSocket connected successfully');
         setIsConnected(true);
         setConnectionStatus('connected');
         reconnectAttempts.current = 0;
@@ -74,7 +74,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       };
 
       wsRef.current.onclose = (event) => {
-        console.log('❌ WebSocket disconnesso:', {
+        console.log('❌ WebSocket disconnected:', {
           code: event.code,
           reason: event.reason,
           wasClean: event.wasClean
@@ -83,23 +83,23 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         setConnectionStatus('disconnected');
         options.onDisconnect?.();
 
-        // Tentativi di riconnessione automatica solo se non è una disconnessione pulita
+        // Automatic reconnection attempts only if it's not a clean disconnection
         if (reconnectAttempts.current < maxReconnectAttempts && !event.wasClean) {
           reconnectAttempts.current++;
-          console.log(`🔄 Tentativo di riconnessione ${reconnectAttempts.current}/${maxReconnectAttempts} in ${reconnectDelay/1000}s`);
+          console.log(`🔄 Reconnection attempt ${reconnectAttempts.current}/${maxReconnectAttempts} in ${reconnectDelay/1000}s`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, reconnectDelay);
         } else if (event.wasClean) {
-          console.log('Disconnessione volontaria, non riconnetterò automaticamente');
+          console.log('Voluntary disconnection, will not reconnect automatically');
         } else {
-          console.log('Raggiunti i tentativi massimi di riconnessione');
+          console.log('Maximum reconnection attempts reached');
         }
       };
 
       wsRef.current.onerror = (error) => {
-        // Verifica se è un errore significativo
+        // Check if it's a significant error
         const errorDetails = {
           type: error.type,
           target: error.target ? {
@@ -108,24 +108,24 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           } : 'unknown'
         };
         
-        // Solo logga errori significativi, non eventi generici "error"
-        // che vengono generati normalmente durante le connessioni WebSocket
+        // Only log significant errors, not generic "error" events
+        // that are generated normally during WebSocket connections
         if (error.type && error.type !== 'error') {
-          console.error('❌ Errore WebSocket specifico:', errorDetails);
+          console.error('❌ Specific WebSocket error:', errorDetails);
         } else if (wsRef.current?.readyState === WebSocket.CLOSED || wsRef.current?.readyState === WebSocket.CLOSING) {
-          // Logga solo se la connessione è realmente chiusa/in chiusura
-          console.error('❌ Errore WebSocket (connessione chiusa):', errorDetails);
+          // Log only if connection is actually closed/closing
+          console.error('❌ WebSocket error (connection closed):', errorDetails);
         } else {
-          // Eventi normali durante la connessione - non loggare come errori
-          console.debug('🔧 Evento WebSocket (normale):', errorDetails);
+          // Normal events during connection - don't log as errors
+          console.debug('🔧 WebSocket event (normal):', errorDetails);
         }
         
-        // Solo imposta stato di errore se è un errore reale
+        // Only set error state if it's a real error
         if (wsRef.current?.readyState === WebSocket.CLOSED || wsRef.current?.readyState === WebSocket.CLOSING) {
           setConnectionStatus('error');
         }
         
-        // Solo chiama onError per errori significativi
+        // Only call onError for significant errors
         if (error.type && error.type !== 'error') {
           options.onError?.(error);
         }
@@ -133,46 +133,46 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
       wsRef.current.onmessage = (event) => {
         try {
-          // Verifica che il messaggio non sia vuoto
+          // Check that the message is not empty
           if (!event.data || event.data.trim() === '') {
-            console.debug('Messaggio WebSocket vuoto ricevuto');
+            console.debug('Empty WebSocket message received');
             return;
           }
 
           const notification: WebSocketNotification = JSON.parse(event.data);
-          console.log('📨 Notifica WebSocket ricevuta:', notification);
+          console.log('📨 WebSocket notification received:', notification);
           
-          // Verifica che la notifica abbia i campi richiesti
+          // Check that the notification has required fields
           if (!notification.type || !notification.timestamp) {
-            console.warn('Notifica WebSocket malformata:', notification);
+            console.warn('Malformed WebSocket notification:', notification);
             return;
           }
           
           options.onNotification?.(notification);
         } catch (error) {
-          console.error('❌ Errore nel parsing del messaggio WebSocket:', {
-            error: error instanceof Error ? error.message : 'Errore sconosciuto',
+          console.error('❌ Error parsing WebSocket message:', {
+            error: error instanceof Error ? error.message : 'Unknown error',
             rawData: event.data
           });
         }
       };
 
     } catch (error) {
-      console.error('❌ Errore durante la connessione WebSocket:', error);
+      console.error('❌ Error during WebSocket connection:', error);
       setConnectionStatus('error');
     }
   };
 
   const disconnect = () => {
-    // Cleanup timeout di riconnessione
+    // Cleanup reconnection timeout
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = undefined;
     }
     
-    // Chiudi connessione WebSocket
+    // Close WebSocket connection
     if (wsRef.current) {
-      // Rimuovi i listener per evitare eventi durante la chiusura
+      // Remove listeners to avoid events during closure
       wsRef.current.onopen = null;
       wsRef.current.onclose = null;
       wsRef.current.onerror = null;

@@ -5,7 +5,7 @@ const TABLE = process.env.BALANCE_TABLE!;
 
 export const handler = async (event: any) => {
   const userId = event.request.userAttributes.sub;
-  const WELCOME_BONUS_CENTS = 2000; // 20 dollari in centesimi
+  const WELCOME_BONUS_CENTS = 2000; // $20 in cents
   try {
     await db.send(new PutItemCommand({
       TableName: TABLE,
@@ -16,10 +16,10 @@ export const handler = async (event: any) => {
       ConditionExpression: "attribute_not_exists(userId)"
     }));
   } catch (err) {
-    console.error("Errore durante la creazione del saldo iniziale:", err);
+    console.error("Error creating initial balance:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: 'Errore durante la creazione del saldo iniziale' }),
+      body: JSON.stringify({ message: 'Error creating initial balance' }),
     };
   }
   return event;

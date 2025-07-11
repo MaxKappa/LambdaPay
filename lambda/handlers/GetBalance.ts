@@ -13,7 +13,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return {
       statusCode: 400,
       body: JSON.stringify({ 
-        message: 'User ID non fornito',
+        message: 'User ID not provided',
         debug: event.requestContext.authorizer 
       }),
     };
@@ -35,7 +35,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     console.error(err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: 'Errore nel recupero del saldo' }),
+      body: JSON.stringify({ message: 'Error retrieving balance' }),
     };
   }
 };

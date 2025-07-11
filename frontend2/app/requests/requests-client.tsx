@@ -37,31 +37,31 @@ export default function RequestsClient() {
   const [error, setError] = useState("")
   const router = useRouter()
 
-  // Configurazione WebSocket per aggiornamenti real-time delle richieste
+  // WebSocket configuration for real-time request updates
   const { isConnected } = useWebSocket({
     onNotification: (notification: WebSocketNotification) => {
       if (notification.type === 'REQUEST') {
-        // Ricarica le richieste quando arriva una nuova richiesta o aggiornamento
+        // Reload requests when a new request or update arrives
         loadRequests()
         
         // Mostra notifica toast
         const requestData = notification.data
         if (requestData.type === 'NEW_REQUEST') {
           toast({
-            title: "💳 Nuova richiesta di denaro",
-            description: `${requestData.from.username || requestData.from.email} ti ha chiesto ${formatCurrency(requestData.amount)}`,
+            title: "💳 New money request",
+            description: `${requestData.from.username || requestData.from.email} has requested ${formatCurrency(requestData.amount)} from you`,
             duration: 5000,
           })
         } else if (requestData.type === 'ACCEPTED') {
           toast({
-            title: "✅ Richiesta accettata!",
-            description: `La tua richiesta di ${formatCurrency(requestData.amount)} è stata accettata`,
+            title: "✅ Request accepted!",
+            description: `Your request for ${formatCurrency(requestData.amount)} has been accepted`,
             duration: 5000,
           })
         } else if (requestData.type === 'REJECTED') {
           toast({
-            title: "❌ Richiesta rifiutata",
-            description: `La tua richiesta di ${formatCurrency(requestData.amount)} è stata rifiutata`,
+            title: "❌ Request rejected",
+            description: `Your request for ${formatCurrency(requestData.amount)} has been rejected`,
             duration: 5000,
           })
         }
@@ -86,7 +86,7 @@ export default function RequestsClient() {
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
-        // Assicurati che Amplify sia configurato prima di controllare l'autenticazione
+        // Make sure Amplify is configured before checking authentication
         configureAmplify()
         
         const currentUser = await getCurrentUser()
@@ -100,11 +100,11 @@ export default function RequestsClient() {
         await loadRequests()
       } catch (error: any) {
         console.error("Authentication or data loading error:", error)
-        // Se l'errore è legato alla configurazione di Amplify, prova a riconfigurare
+        // If the error is related to Amplify configuration, try to reconfigure
         if (error.message?.includes("Auth UserPool not configured")) {
           try {
             configureAmplify()
-            // Riprova dopo la riconfigurazione
+            // Retry after reconfiguration
             const currentUser = await getCurrentUser()
             if (currentUser) {
               setUser(currentUser)
@@ -132,7 +132,7 @@ export default function RequestsClient() {
       const result = await handleRequest(requestId, action)
       
       if (result.success) {
-        await loadRequests() // Ricarica le richieste
+        await loadRequests() // Reload requests
         toast({
           title: action === 'ACCEPT' ? "Request accepted" : "Request rejected",
           description: action === 'ACCEPT' 
@@ -140,7 +140,7 @@ export default function RequestsClient() {
             : "The money request has been rejected.",
         })
       } else {
-        // Mostra l'errore tramite toast senza rompere l'applicazione
+        // Show error via toast without breaking the application
         toast({
           variant: "destructive",
           title: "Error",
@@ -242,7 +242,7 @@ export default function RequestsClient() {
                   ? "bg-green-100 text-green-800" 
                   : "bg-red-100 text-red-800"
               }`}
-              title={isConnected ? "Notifiche real-time attive" : "Notifiche real-time non disponibili"}
+              title={isConnected ? "Real-time notifications active" : "Real-time notifications unavailable"}
             >
               {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
               <span>{isConnected ? "Live" : "Offline"}</span>
@@ -293,7 +293,7 @@ export default function RequestsClient() {
             ) : (
               <div className="space-y-4">
                 {currentRequests.map((request) => {
-                  const amount = parseInt(request.amount.N) // Ora è in centesimi
+                  const amount = parseInt(request.amount.N) // Now in cents
                   const isPending = request.status.S === 'PENDING'
                   const isReceived = activeTab === 'received'
 

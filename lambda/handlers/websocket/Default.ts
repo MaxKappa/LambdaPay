@@ -1,7 +1,7 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  console.log('Messaggio WebSocket ricevuto:', event.body);
+  console.log('WebSocket message received:', event.body);
   
   // Per ora gestiamo solo i ping/pong per mantenere la connessione attiva
   const body = JSON.parse(event.body || '{}');
@@ -13,5 +13,5 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  return { statusCode: 200, body: 'Messaggio ricevuto' };
+  return { statusCode: 200, body: 'Message received' };
 };

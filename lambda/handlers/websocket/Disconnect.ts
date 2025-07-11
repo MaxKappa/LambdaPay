@@ -9,7 +9,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   
   const connectionId = event.requestContext.connectionId!;
   
-  console.log(`Tentativo di disconnessione WebSocket - ConnectionId: ${connectionId}`);
+  console.log(`WebSocket disconnect attempt - ConnectionId: ${connectionId}`);
 
   try {
     // Rimuovi la connessione dal database
@@ -20,11 +20,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }
     }));
 
-    console.log(`Connessione WebSocket chiusa con successo: ${connectionId}`);
-    return { statusCode: 200, body: 'Disconnesso' };
+    console.log(`WebSocket connection closed successfully: ${connectionId}`);
+    return { statusCode: 200, body: 'Disconnected' };
   } catch (error) {
-    console.error('Errore durante la disconnessione WebSocket:', error);
+    console.error('Error during WebSocket disconnection:', error);
     // Non restituire errore per la disconnessione per evitare loop
-    return { statusCode: 200, body: 'Disconnesso' };
+    return { statusCode: 200, body: 'Disconnected' };
   }
 };

@@ -39,28 +39,27 @@ export default function DashboardClient() {
   const [requestModalOpen, setRequestModalOpen] = useState(false)
   const router = useRouter()
 
-  // Configurazione WebSocket per notifiche real-time
+  // WebSocket configuration for real-time notifications
   const { isConnected, connectionStatus } = useWebSocket({
     onNotification: (notification: WebSocketNotification) => {
-      console.log('Notifica WebSocket ricevuta:', notification)
+      console.log('WebSocket notification received:', notification)
       
       switch (notification.type) {
-        case 'TRANSACTION':
-          // Aggiorna automaticamente le transazioni quando arriva un pagamento
-          refreshData()
+        case 'TRANSACTION':        // Automatically update transactions when a payment arrives
+        refreshData()
           
           // Mostra notifica toast
           const transactionData = notification.data
           if (transactionData.type === 'RECEIVED') {
             toast({
-              title: "💰 Pagamento ricevuto!",
-              description: `Hai ricevuto ${formatCurrency(transactionData.amount)} da ${transactionData.from.username || transactionData.from.email}`,
+              title: "💰 Payment received!",
+              description: `You received ${formatCurrency(transactionData.amount)} from ${transactionData.from.username || transactionData.from.email}`,
               duration: 5000,
             })
           } else if (transactionData.type === 'SENT') {
             toast({
-              title: "✅ Pagamento inviato!",
-              description: `Hai inviato ${formatCurrency(transactionData.amount)} a ${transactionData.to.username || transactionData.to.email}`,
+              title: "✅ Payment sent!",
+              description: `You sent ${formatCurrency(transactionData.amount)} to ${transactionData.to.username || transactionData.to.email}`,
               duration: 5000,
             })
           }
@@ -70,43 +69,43 @@ export default function DashboardClient() {
           const requestData = notification.data
           if (requestData.type === 'NEW_REQUEST') {
             toast({
-              title: "💳 Nuova richiesta di denaro",
-              description: `${requestData.from.username || requestData.from.email} ti ha chiesto ${formatCurrency(requestData.amount)}`,
+              title: "💳 New money request",
+              description: `${requestData.from.username || requestData.from.email} has requested ${formatCurrency(requestData.amount)} from you`,
               duration: 5000,
             })
           } else if (requestData.type === 'ACCEPTED') {
             toast({
-              title: "✅ Richiesta accettata!",
-              description: `La tua richiesta di ${formatCurrency(requestData.amount)} è stata accettata`,
+              title: "✅ Request accepted!",
+              description: `Your request for ${formatCurrency(requestData.amount)} has been accepted`,
               duration: 5000,
             })
           } else if (requestData.type === 'REJECTED') {
             toast({
-              title: "❌ Richiesta rifiutata",
-              description: `La tua richiesta di ${formatCurrency(requestData.amount)} è stata rifiutata`,
+              title: "❌ Request rejected",
+              description: `Your request for ${formatCurrency(requestData.amount)} has been rejected`,
               duration: 5000,
             })
           }
           break
           
         case 'BALANCE_UPDATE':
-          // Aggiorna solo il saldo per maggiore efficienza
+          // Update only balance for better efficiency
           setBalance(notification.data.balance.toString())
           break
       }
     },
     onConnect: () => {
-      console.log('WebSocket connesso - Notifiche real-time attive')
+      console.log('WebSocket connected - Real-time notifications active')
     },
     onDisconnect: () => {
-      console.log('WebSocket disconnesso - Notifiche real-time non disponibili')
+      console.log('WebSocket disconnected - Real-time notifications unavailable')
     },
     onError: (error) => {
       // Solo logga errori significativi
       if (error.type && error.type !== 'error') {
-        console.error('Errore WebSocket:', error);
+        console.error('WebSocket error:', error);
       } else {
-        console.debug('Evento WebSocket (non critico):', error);
+        console.debug('WebSocket event (non-critical):', error);
       }
     }
   })
@@ -115,7 +114,7 @@ export default function DashboardClient() {
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
-        // Assicurati che Amplify sia configurato prima di controllare l'autenticazione
+        // Make sure Amplify is configured before checking authentication
         configureAmplify()
         
         const currentUser = await getCurrentUser()
@@ -139,11 +138,11 @@ export default function DashboardClient() {
         setTransactions(userTransactions)
       } catch (error: any) {
         console.error("Authentication or data loading error:", error)
-        // Se l'errore è legato alla configurazione di Amplify, prova a riconfigurare
+        // If the error is related to Amplify configuration, try to reconfigure
         if (error.message?.includes("Auth UserPool not configured")) {
           try {
             configureAmplify()
-            // Riprova dopo la riconfigurazione
+            // Retry after reconfiguration
             const currentUser = await getCurrentUser()
             if (currentUser) {
               setUser(currentUser)
@@ -247,7 +246,7 @@ export default function DashboardClient() {
                     ? "bg-green-100 text-green-800" 
                     : "bg-red-100 text-red-800"
                 }`}
-                title={isConnected ? "Notifiche real-time attive" : "Notifiche real-time non disponibili"}
+                title={isConnected ? "Real-time notifications active" : "Real-time notifications unavailable"}
               >
                 {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
                 <span>{isConnected ? "Live" : "Offline"}</span>

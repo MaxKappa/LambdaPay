@@ -64,7 +64,7 @@ export async function transfer(amountInCents: number, recipientEmail: string): P
       method: "POST",
       headers,
       body: JSON.stringify({
-        amount: amountInCents, // Invia i centesimi al backend
+        amount: amountInCents, // Send cents to backend
         recipientId: recipientEmail,
       }),
     })
@@ -87,7 +87,7 @@ export async function requestMoney(amountInCents: number, recipientEmail: string
       method: "POST",
       headers,
       body: JSON.stringify({
-        amount: amountInCents, // Invia i centesimi al backend
+        amount: amountInCents, // Send cents to backend
         recipientEmail: recipientEmail,
         message: message || '',
       }),

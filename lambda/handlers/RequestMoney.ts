@@ -10,12 +10,12 @@ const REQUESTS_TABLE = process.env.REQUESTS_TABLE!;
 const USER_POOL_ID = process.env.USER_POOL_ID!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  // Validazione del body della richiesta
+  // Request body validation
   if (!event.body) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Body della richiesta mancante' }),
+      body: JSON.stringify({ message: 'Request body missing' }),
     };
   }
 
@@ -26,7 +26,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Formato JSON non valido' }),
+      body: JSON.stringify({ message: 'Invalid JSON format' }),
     };
   }
 
@@ -35,92 +35,92 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const fromEmail = event.requestContext.authorizer?.claims.email;
   const fromUsername = event.requestContext.authorizer?.claims.preferred_username || fromEmail?.split('@')[0];
 
-  // Validazione rigorosa dei parametri
+  // Strict parameter validation
   if (!amount || !recipientEmail || !fromUserId || !fromEmail) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Parametri mancanti: amount, recipientEmail, fromUserId e fromEmail sono obbligatori' }),
+      body: JSON.stringify({ message: 'Missing parameters: amount, recipientEmail, fromUserId and fromEmail are required' }),
     };
   }
 
-  // Validazione del tipo di dato amount - deve essere un numero intero (centesimi)
+  // Amount data type validation - must be an integer (cents)
   if (typeof amount !== 'number') {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Amount deve essere un numero intero (centesimi)' }),
+      body: JSON.stringify({ message: 'Amount must be an integer (cents)' }),
     };
   }
 
   const amountInCents = amount;
 
-  // Validazione robusta dell'amount
+  // Robust amount validation
   if (!Number.isInteger(amountInCents) || !isFinite(amountInCents)) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Amount deve essere un numero intero (centesimi)' }),
+      body: JSON.stringify({ message: 'Amount must be an integer (cents)' }),
     };
   }
 
-  // Validazione di sicurezza: l'importo deve essere strettamente positivo
+  // Security validation: amount must be strictly positive
   if (amountInCents <= 0) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'L\'importo deve essere maggiore di zero' }),
+      body: JSON.stringify({ message: 'Amount must be greater than zero' }),
     };
   }
 
-  // Validazione di sicurezza: limite massimo per importo richiesto (100.000 centesimi = 1.000 euro)
+  // Security validation: maximum limit for requested amount (100,000 cents = 1,000 euros)
   const MAX_REQUEST_AMOUNT = 100000;
   if (amountInCents > MAX_REQUEST_AMOUNT) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: `L'importo richiesto non può superare ${(MAX_REQUEST_AMOUNT / 100).toLocaleString('it-IT')} euro` }),
+      body: JSON.stringify({ message: `Request amount cannot exceed ${(MAX_REQUEST_AMOUNT / 100).toLocaleString('en-US')} euros` }),
     };
   }
 
-  // Validazione formato email
+  // Email format validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(recipientEmail)) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Formato email non valido' }),
+      body: JSON.stringify({ message: 'Invalid email format' }),
     };
   }
 
-  // Validazione aggiuntiva del messaggio (se presente)
+  // Additional message validation (if present)
   if (message && typeof message !== 'string') {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Il messaggio deve essere una stringa' }),
+      body: JSON.stringify({ message: 'Message must be a string' }),
     };
   }
 
-  // Limitazione lunghezza messaggio
+  // Message length limitation
   if (message && message.length > 500) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Il messaggio non può superare 500 caratteri' }),
+      body: JSON.stringify({ message: 'Message cannot exceed 500 characters' }),
     };
   }
 
-  // Non può richiedere denaro a se stesso
+  // Cannot request money from yourself
   if (recipientEmail === fromEmail) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Non puoi richiedere denaro a te stesso' }),
+      body: JSON.stringify({ message: 'Cannot request money from yourself' }),
     };
   }
 
-  // Risolvi recipientEmail in userId Cognito
+  // Resolve recipientEmail to Cognito userId
   let toUserId: string | undefined;
   let toUsername: string | undefined;
   try {
@@ -134,11 +134,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       toUsername = usersRes.Users[0].Attributes?.find(attr => attr.Name === "preferred_username")?.Value;
     }
   } catch (err) {
-    console.error("Errore nella ricerca utente Cognito:", err);
+    console.error("Error searching Cognito user:", err);
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 500,
-      body: JSON.stringify({ message: 'Errore nella ricerca utente destinatario' }),
+      body: JSON.stringify({ message: 'Error searching recipient user' }),
     };
   }
 
@@ -146,7 +146,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 404,
-      body: JSON.stringify({ message: 'Destinatario non trovato' }),
+      body: JSON.stringify({ message: 'Recipient not found' }),
     };
   }
 
@@ -160,8 +160,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         requestId: { S: requestId },
         fromUserId: { S: fromUserId },
         toUserId: { S: toUserId },
-        amount: { N: Math.abs(amountInCents).toString() }, // Forza valore assoluto per sicurezza
-        message: { S: (message || '').substring(0, 500) }, // Limita messaggio e forza stringa sicura
+        amount: { N: Math.abs(amountInCents).toString() }, // Force absolute value for security
+        message: { S: (message || '').substring(0, 500) }, // Limit message and force secure string
         status: { S: 'PENDING' },
         createdAt: { S: now },
         fromEmail: { S: fromEmail },
@@ -171,7 +171,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }
     }));
 
-    // Invia notifica WebSocket real-time al destinatario della richiesta
+    // Send real-time WebSocket notification to request recipient
     try {
       const notifier = createWebSocketNotifier();
       
@@ -192,15 +192,15 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         timestamp: now
       });
     } catch (notificationError) {
-      console.error('Errore nell\'invio della notifica WebSocket per nuova richiesta:', notificationError);
-      // Non blocchiamo la risposta se la notifica fallisce
+      console.error('Error sending WebSocket notification for new request:', notificationError);
+      // Don't block response if notification fails
     }
 
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 200,
       body: JSON.stringify({ 
-        message: 'Richiesta di denaro inviata con successo',
+        message: 'Money request sent successfully',
         requestId: requestId
       })
     };
@@ -209,7 +209,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 500,
-      body: JSON.stringify({ message: 'Errore nell\'invio della richiesta' })
+      body: JSON.stringify({ message: 'Error sending request' })
     };
   }
 };

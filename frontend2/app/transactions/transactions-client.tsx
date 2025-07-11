@@ -34,7 +34,7 @@ export default function TransactionsClient() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  // Configurazione WebSocket per aggiornamenti real-time delle transazioni
+  // WebSocket configuration for real-time transaction updates
   const { isConnected } = useWebSocket({
     onNotification: (notification: WebSocketNotification) => {
       if (notification.type === 'TRANSACTION') {
@@ -45,14 +45,14 @@ export default function TransactionsClient() {
         const transactionData = notification.data
         if (transactionData.type === 'RECEIVED') {
           toast({
-            title: "💰 Pagamento ricevuto!",
-            description: `Hai ricevuto ${formatCurrency(transactionData.amount)} da ${transactionData.from.username || transactionData.from.email}`,
+            title: "💰 Payment received!",
+            description: `You received ${formatCurrency(transactionData.amount)} from ${transactionData.from.username || transactionData.from.email}`,
             duration: 5000,
           })
         } else if (transactionData.type === 'SENT') {
           toast({
-            title: "✅ Pagamento inviato!",
-            description: `Hai inviato ${formatCurrency(transactionData.amount)} a ${transactionData.to.username || transactionData.to.email}`,
+            title: "✅ Payment sent!",
+            description: `You sent ${formatCurrency(transactionData.amount)} to ${transactionData.to.username || transactionData.to.email}`,
             duration: 5000,
           })
         }
@@ -177,7 +177,7 @@ export default function TransactionsClient() {
                   ? "bg-green-100 text-green-800" 
                   : "bg-red-100 text-red-800"
               }`}
-              title={isConnected ? "Aggiornamenti real-time attivi" : "Aggiornamenti real-time non disponibili"}
+              title={isConnected ? "Real-time updates active" : "Real-time updates unavailable"}
             >
               {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
               <span>{isConnected ? "Live" : "Offline"}</span>

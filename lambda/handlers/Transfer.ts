@@ -11,12 +11,12 @@ const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE!;
 const USER_POOL_ID = process.env.USER_POOL_ID!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  // Validazione del body della richiesta
+  // Request body validation
   if (!event.body) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Body della richiesta mancante' }),
+      body: JSON.stringify({ message: 'Request body missing' }),
     };
   }
 
@@ -27,72 +27,72 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Formato JSON non valido' }),
+      body: JSON.stringify({ message: 'Invalid JSON format' }),
     };
   }
 
   const { amount, recipientId } = parsedBody;
   const senderId = event.requestContext.authorizer?.claims.sub;
   
-  // Validazione rigorosa dei parametri
+  // Strict parameter validation
   if (!amount || !recipientId || !senderId) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Parametri mancanti: amount, recipientId e senderId sono obbligatori' }),
+      body: JSON.stringify({ message: 'Missing parameters: amount, recipientId and senderId are required' }),
     };
   }
 
-  // Validazione del tipo di dato amount - deve essere un numero intero (centesimi)
+  // Amount data type validation - must be an integer (cents)
   if (typeof amount !== 'number') {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Amount deve essere un numero intero (centesimi)' }),
+      body: JSON.stringify({ message: 'Amount must be an integer (cents)' }),
     };
   }
 
   const amountInCents = amount;
 
-  // Validazione robusta dell'amount
+  // Robust amount validation
   if (!Number.isInteger(amountInCents) || !isFinite(amountInCents)) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Amount deve essere un numero intero (centesimi)' }),
+      body: JSON.stringify({ message: 'Amount must be an integer (cents)' }),
     };
   }
 
-  // Validazione di sicurezza: l'importo deve essere strettamente positivo
+  // Security validation: amount must be strictly positive
   if (amountInCents <= 0) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'L\'importo deve essere maggiore di zero' }),
+      body: JSON.stringify({ message: 'Amount must be greater than zero' }),
     };
   }
 
-  // Validazione limite massimo (1 milione di centesimi = 10.000 euro)
+  // Maximum limit validation (1 million cents = 10,000 euros)
   const MAX_TRANSFER_AMOUNT = 1000000;
   if (amountInCents > MAX_TRANSFER_AMOUNT) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: `L'importo non può superare ${(MAX_TRANSFER_AMOUNT / 100).toLocaleString('it-IT')} euro` }),
+      body: JSON.stringify({ message: `Amount cannot exceed ${(MAX_TRANSFER_AMOUNT / 100).toLocaleString('en-US')} euros` }),
     };
   }
 
-  // Impedisce auto-trasferimenti
+  // Prevents self-transfers
   const senderEmail = event.requestContext.authorizer?.claims.email;
   if (recipientId === senderEmail) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Non puoi trasferire denaro a te stesso' }),
+      body: JSON.stringify({ message: 'Cannot transfer money to yourself' }),
     };
   }
 
-  // Controlla saldo mittente
+  // Check sender balance
   const senderBalanceRes = await db.send(new GetItemCommand({
     TableName: BALANCE_TABLE,
     Key: { userId: { S: senderId } }
@@ -102,11 +102,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: 'Saldo insufficiente' }),
+      body: JSON.stringify({ message: 'Insufficient balance' }),
     };
   }
 
-  // Risolvi recipientId (email) in userId Cognito
+  // Resolve recipientId (email) to Cognito userId
   let resolvedRecipientId: string | undefined;
   let resolvedUsername: string | undefined;
   try {
@@ -120,11 +120,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       resolvedUsername = usersRes.Users[0].Attributes?.find(attr => attr.Name === "preferred_username")?.Value;
     }
   } catch (err) {
-    console.error("Errore nella ricerca utente Cognito:", err);
+    console.error("Error searching Cognito user:", err);
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 500,
-      body: JSON.stringify({ message: 'Errore nella ricerca utente destinatario' }),
+      body: JSON.stringify({ message: 'Error searching recipient user' }),
     };
   }
 
@@ -132,7 +132,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 404,
-      body: JSON.stringify({ message: 'Destinatario non trovato' }),
+      body: JSON.stringify({ message: 'Recipient not found' }),
     };
   }
 
@@ -148,10 +148,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Key: { userId: { S: senderId } },
             UpdateExpression: 'SET balance = if_not_exists(balance, :zero) - :amt',
             ExpressionAttributeValues: { 
-              ':amt': { N: Math.abs(amountInCents).toString() }, // Forza valore assoluto per sicurezza
+              ':amt': { N: Math.abs(amountInCents).toString() }, // Force absolute value for security
               ':zero': { N: '0' } 
             },
-            ConditionExpression: 'balance >= :amt AND :amt > :zero' // Doppia verifica
+            ConditionExpression: 'balance >= :amt AND :amt > :zero' // Double verification
           }
         },
         {
@@ -160,10 +160,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Key: { userId: { S: resolvedRecipientId } },
             UpdateExpression: 'SET balance = if_not_exists(balance, :zero) + :amt',
             ExpressionAttributeValues: { 
-              ':amt': { N: Math.abs(amountInCents).toString() }, // Forza valore assoluto per sicurezza
+              ':amt': { N: Math.abs(amountInCents).toString() }, // Force absolute value for security
               ':zero': { N: '0' } 
             },
-            ConditionExpression: ':amt > :zero' // Verifica che l'amount sia positivo
+            ConditionExpression: ':amt > :zero' // Verify that amount is positive
           }
         },
         {
@@ -172,7 +172,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Item: {
               userId: { S: senderId },
               transactionId: { S: transactionId },
-              amount: { N: (-Math.abs(amountInCents)).toString() }, // Forza negativo assoluto
+              amount: { N: (-Math.abs(amountInCents)).toString() }, // Force absolute negative
               date: { S: now },
               to: { S: resolvedRecipientId },
               toEmail: { S: recipientId },
@@ -186,7 +186,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             Item: {
               userId: { S: resolvedRecipientId },
               transactionId: { S: transactionId },
-              amount: { N: Math.abs(amountInCents).toString() }, // Forza positivo assoluto
+              amount: { N: Math.abs(amountInCents).toString() }, // Force absolute positive
               date: { S: now },
               from: { S: senderId },
               fromEmail: { S: event.requestContext.authorizer?.claims.email || '' },
@@ -197,12 +197,12 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       ]
     }));
     
-    // Invia notifiche WebSocket real-time
+    // Send real-time WebSocket notifications
     try {
       const notifier = createWebSocketNotifier();
-      const senderUsername = event.requestContext.authorizer?.claims.preferred_username || senderEmail?.split('@')[0] || 'Utente';
+      const senderUsername = event.requestContext.authorizer?.claims.preferred_username || senderEmail?.split('@')[0] || 'User';
       
-      // Notifica al destinatario del pagamento ricevuto
+      // Notify recipient of received payment
       await notifier.notifyUser(resolvedRecipientId, {
         type: 'TRANSACTION',
         data: {
@@ -219,7 +219,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         timestamp: now
       });
 
-      // Notifica al mittente della conferma di invio
+      // Notify sender of send confirmation
       await notifier.notifyUser(senderId, {
         type: 'TRANSACTION',
         data: {
@@ -236,7 +236,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         timestamp: now
       });
 
-      // Notifica aggiornamento saldo a entrambi
+      // Notify balance update to both users
       const [updatedSenderBalance, updatedRecipientBalance] = await Promise.all([
         db.send(new GetItemCommand({
           TableName: BALANCE_TABLE,
@@ -265,22 +265,22 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         })
       ]);
     } catch (notificationError) {
-      console.error('Errore nell\'invio delle notifiche WebSocket:', notificationError);
-      // Non blocchiamo la risposta se le notifiche falliscono
+      console.error('Error sending WebSocket notifications:', notificationError);
+      // Don't block response if notifications fail
     }
     
     return { headers: { 'Access-Control-Allow-Origin': '*' }, statusCode: 200, body: JSON.stringify({ message: 'Transfer completed' }) };
   } catch (err: any) {
-    console.error('Errore durante il trasferimento:', err);
+    console.error('Error during transfer:', err);
     
-    // Gestione specifica per errori di condizione (saldo insufficiente)
+    // Specific handling for condition errors (insufficient balance)
     if (err.name === 'TransactionCanceledException' && err.CancellationReasons) {
       const balanceFailure = err.CancellationReasons.find((reason: any) => reason.Code === 'ConditionalCheckFailed');
       if (balanceFailure) {
         return { 
           headers: { 'Access-Control-Allow-Origin': '*' }, 
           statusCode: 400, 
-          body: JSON.stringify({ message: 'Saldo insufficiente per completare il trasferimento' }) 
+          body: JSON.stringify({ message: 'Insufficient balance to complete transfer' }) 
         };
       }
     }
@@ -288,7 +288,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return { 
       headers: { 'Access-Control-Allow-Origin': '*' }, 
       statusCode: 500, 
-      body: JSON.stringify({ message: 'Errore interno del server durante il trasferimento' }) 
+      body: JSON.stringify({ message: 'Internal server error during transfer' }) 
     };
   }
 };

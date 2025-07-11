@@ -10,11 +10,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const connectionId = event.requestContext.connectionId!;
   const userId = event.queryStringParameters?.userId;
 
-  console.log(`Tentativo di connessione WebSocket - ConnectionId: ${connectionId}, UserId: ${userId}`);
+  console.log(`WebSocket connection attempt - ConnectionId: ${connectionId}, UserId: ${userId}`);
 
   if (!userId) {
-    console.error('UserId mancante nella connessione WebSocket');
-    return { statusCode: 400, body: 'UserId richiesto' };
+    console.error('Missing UserId in WebSocket connection');
+    return { statusCode: 400, body: 'UserId required' };
   }
 
   try {
@@ -30,10 +30,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }
     }));
 
-    console.log(`Connessione WebSocket stabilita con successo: ${connectionId} per utente: ${userId}`);
-    return { statusCode: 200, body: 'Connesso' };
+    console.log(`WebSocket connection established successfully: ${connectionId} for user: ${userId}`);
+    return { statusCode: 200, body: 'Connected' };
   } catch (error) {
-    console.error('Errore durante la connessione WebSocket:', error);
-    return { statusCode: 500, body: 'Errore di connessione' };
+    console.error('Error during WebSocket connection:', error);
+    return { statusCode: 500, body: 'Connection error' };
   }
 };

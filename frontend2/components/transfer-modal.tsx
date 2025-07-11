@@ -16,7 +16,7 @@ interface TransferModalProps {
   open: boolean
   onClose: () => void
   onSuccess: () => void
-  currentBalance: number // Ora è in centesimi
+  currentBalance: number // Now in cents
 }
 
 export default function TransferModal({ open, onClose, onSuccess, currentBalance }: TransferModalProps) {
