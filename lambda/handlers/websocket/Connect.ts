@@ -18,14 +18,12 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   }
 
   try {
-    // Salva la connessione nel database
     await db.send(new PutItemCommand({
       TableName: CONNECTIONS_TABLE,
       Item: {
         connectionId: { S: connectionId },
         userId: { S: userId },
         connectedAt: { S: new Date().toISOString() },
-        // Aggiungi TTL (24 ore da ora)
         ttl: { N: Math.floor(Date.now() / 1000 + 24 * 60 * 60).toString() }
       }
     }));

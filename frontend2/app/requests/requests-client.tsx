@@ -37,14 +37,10 @@ export default function RequestsClient() {
   const [error, setError] = useState("")
   const router = useRouter()
 
-  // WebSocket configuration for real-time request updates
   const { isConnected } = useWebSocket({
     onNotification: (notification: WebSocketNotification) => {
       if (notification.type === 'REQUEST') {
-        // Reload requests when a new request or update arrives
         loadRequests()
-        
-        // Mostra notifica toast
         const requestData = notification.data
         if (requestData.type === 'NEW_REQUEST') {
           toast({
@@ -86,7 +82,6 @@ export default function RequestsClient() {
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
-        // Make sure Amplify is configured before checking authentication
         configureAmplify()
         
         const currentUser = await getCurrentUser()
@@ -100,11 +95,9 @@ export default function RequestsClient() {
         await loadRequests()
       } catch (error: any) {
         console.error("Authentication or data loading error:", error)
-        // If the error is related to Amplify configuration, try to reconfigure
         if (error.message?.includes("Auth UserPool not configured")) {
           try {
             configureAmplify()
-            // Retry after reconfiguration
             const currentUser = await getCurrentUser()
             if (currentUser) {
               setUser(currentUser)
@@ -132,7 +125,7 @@ export default function RequestsClient() {
       const result = await handleRequest(requestId, action)
       
       if (result.success) {
-        await loadRequests() // Reload requests
+        await loadRequests()
         toast({
           title: action === 'ACCEPT' ? "Request accepted" : "Request rejected",
           description: action === 'ACCEPT' 
@@ -140,7 +133,6 @@ export default function RequestsClient() {
             : "The money request has been rejected.",
         })
       } else {
-        // Show error via toast without breaking the application
         toast({
           variant: "destructive",
           title: "Error",
@@ -174,7 +166,6 @@ export default function RequestsClient() {
     return null
   }
 
-  // Sort requests by timestamp in descending order (newest first)
   const sortedReceivedRequests = [...receivedRequests].sort((a, b) => {
     const dateA = new Date(a.createdAt.S).getTime()
     const dateB = new Date(b.createdAt.S).getTime()
@@ -235,7 +226,6 @@ export default function RequestsClient() {
               <h1 className="text-xl font-semibold text-gray-900">Money Requests</h1>
             </div>
             
-            {/* Indicatore connessione WebSocket */}
             <div 
               className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
                 isConnected 
@@ -257,7 +247,6 @@ export default function RequestsClient() {
             <CardTitle>Money Requests</CardTitle>
             <CardDescription>Manage your incoming and outgoing money requests</CardDescription>
 
-            {/* Tabs */}
             <div className="flex gap-2 mt-4">
               <Button 
                 variant={activeTab === 'received' ? "default" : "outline"} 
@@ -293,7 +282,7 @@ export default function RequestsClient() {
             ) : (
               <div className="space-y-4">
                 {currentRequests.map((request) => {
-                  const amount = parseInt(request.amount.N) // Now in cents
+                  const amount = parseInt(request.amount.N) 
                   const isPending = request.status.S === 'PENDING'
                   const isReceived = activeTab === 'received'
 

@@ -21,14 +21,14 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
-  const reconnectDelay = 3000; // 3 secondi
+  const reconnectDelay = 3000;
 
   const connect = async () => {
     try {
       setConnectionStatus('connecting');
       console.log('Starting WebSocket connection...');
       
-      // Get authenticated user information
+     
       const session = await fetchAuthSession();
       const userId = session.tokens?.idToken?.payload?.sub;
       
@@ -46,7 +46,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         return;
       }
 
-      // Close existing connection if present
+     
       if (wsRef.current) {
         console.log('Closing existing WebSocket connection');
         wsRef.current.close();
@@ -55,14 +55,14 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       console.log('Creating new WebSocket connection...');
       wsRef.current = new WebSocket(wsUrl);
 
-      // Timeout per la connessione
+     
       const connectionTimeout = setTimeout(() => {
         if (wsRef.current?.readyState === WebSocket.CONNECTING) {
           console.warn('Timeout connessione WebSocket');
           wsRef.current?.close();
           setConnectionStatus('error');
         }
-      }, 10000); // 10 secondi timeout
+      }, 10000);
 
       wsRef.current.onopen = () => {
         clearTimeout(connectionTimeout);
@@ -83,7 +83,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         setConnectionStatus('disconnected');
         options.onDisconnect?.();
 
-        // Automatic reconnection attempts only if it's not a clean disconnection
+       
         if (reconnectAttempts.current < maxReconnectAttempts && !event.wasClean) {
           reconnectAttempts.current++;
           console.log(`🔄 Reconnection attempt ${reconnectAttempts.current}/${maxReconnectAttempts} in ${reconnectDelay/1000}s`);
@@ -99,7 +99,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       };
 
       wsRef.current.onerror = (error) => {
-        // Check if it's a significant error
+       
         const errorDetails = {
           type: error.type,
           target: error.target ? {
@@ -108,24 +108,24 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           } : 'unknown'
         };
         
-        // Only log significant errors, not generic "error" events
-        // that are generated normally during WebSocket connections
+       
+       
         if (error.type && error.type !== 'error') {
           console.error('❌ Specific WebSocket error:', errorDetails);
         } else if (wsRef.current?.readyState === WebSocket.CLOSED || wsRef.current?.readyState === WebSocket.CLOSING) {
-          // Log only if connection is actually closed/closing
+         
           console.error('❌ WebSocket error (connection closed):', errorDetails);
         } else {
-          // Normal events during connection - don't log as errors
+         
           console.debug('🔧 WebSocket event (normal):', errorDetails);
         }
         
-        // Only set error state if it's a real error
+       
         if (wsRef.current?.readyState === WebSocket.CLOSED || wsRef.current?.readyState === WebSocket.CLOSING) {
           setConnectionStatus('error');
         }
         
-        // Only call onError for significant errors
+       
         if (error.type && error.type !== 'error') {
           options.onError?.(error);
         }
@@ -133,7 +133,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
       wsRef.current.onmessage = (event) => {
         try {
-          // Check that the message is not empty
+         
           if (!event.data || event.data.trim() === '') {
             console.debug('Empty WebSocket message received');
             return;
@@ -142,7 +142,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           const notification: WebSocketNotification = JSON.parse(event.data);
           console.log('📨 WebSocket notification received:', notification);
           
-          // Check that the notification has required fields
+         
           if (!notification.type || !notification.timestamp) {
             console.warn('Malformed WebSocket notification:', notification);
             return;
@@ -164,15 +164,15 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   };
 
   const disconnect = () => {
-    // Cleanup reconnection timeout
+   
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = undefined;
     }
     
-    // Close WebSocket connection
+   
     if (wsRef.current) {
-      // Remove listeners to avoid events during closure
+     
       wsRef.current.onopen = null;
       wsRef.current.onclose = null;
       wsRef.current.onerror = null;
@@ -204,12 +204,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   useEffect(() => {
     connect();
 
-    // Ping periodico per mantenere la connessione attiva
+   
     const pingInterval = setInterval(() => {
       if (isConnected) {
         sendPing();
       }
-    }, 30000); // 30 secondi
+    }, 30000);
 
     return () => {
       clearInterval(pingInterval);

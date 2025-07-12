@@ -5,7 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Functions to handle cents
 export function centsToAmount(cents: number): number {
   return cents / 100
 }
@@ -32,7 +31,6 @@ export function formatDate(date: Date): string {
   }).format(date)
 }
 
-// Function to validate cents
 export function isValidCents(cents: number): boolean {
   return Number.isInteger(cents) && cents >= 0
 }

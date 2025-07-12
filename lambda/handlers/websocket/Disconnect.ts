@@ -12,7 +12,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   console.log(`WebSocket disconnect attempt - ConnectionId: ${connectionId}`);
 
   try {
-    // Rimuovi la connessione dal database
+   
     await db.send(new DeleteItemCommand({
       TableName: CONNECTIONS_TABLE,
       Key: {
@@ -24,7 +24,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return { statusCode: 200, body: 'Disconnected' };
   } catch (error) {
     console.error('Error during WebSocket disconnection:', error);
-    // Non restituire errore per la disconnessione per evitare loop
+   
     return { statusCode: 200, body: 'Disconnected' };
   }
 };

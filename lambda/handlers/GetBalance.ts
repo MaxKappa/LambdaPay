@@ -8,7 +8,7 @@ const TABLE = process.env.BALANCE_TABLE!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   const claims = event.requestContext.authorizer?.claims || event.requestContext.authorizer;
-  const userId = claims?.sub; // Deve essere sempre l'UID Cognito
+  const userId = claims?.sub; 
   if (!userId) {
     return {
       statusCode: 400,

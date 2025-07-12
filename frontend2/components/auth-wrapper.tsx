@@ -29,13 +29,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     try {
-      // Assicurati che Amplify sia configurato
+     
       configureAmplify()
       const currentUser = await getCurrentUser()
       setUser(currentUser)
     } catch (error: any) {
       console.error("Error refreshing user:", error)
-      // If the error is related to Amplify configuration, try to reconfigure
+     
       if (error.message?.includes("Auth UserPool not configured")) {
         try {
           configureAmplify()
@@ -78,7 +78,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return null // Let the individual pages handle redirects
+    return null
   }
 
   return <>{children}</>

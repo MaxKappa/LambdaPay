@@ -5,7 +5,7 @@ const TABLE = process.env.BALANCE_TABLE!;
 
 export const handler = async (event: any) => {
   const userId = event.request.userAttributes.sub;
-  const WELCOME_BONUS_CENTS = 2000; // $20 in cents
+  const WELCOME_BONUS_CENTS = 2000;
   try {
     await db.send(new PutItemCommand({
       TableName: TABLE,

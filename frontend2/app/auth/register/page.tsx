@@ -27,19 +27,16 @@ export default function RegisterPage() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const router = useRouter()
 
-  // Check if user is already authenticated
   useEffect(() => {
     const checkAuthentication = async () => {
       try {
         configureAmplify()
         const user = await getCurrentUser()
         if (user) {
-          // User is already authenticated, redirect to dashboard
           router.push("/dashboard")
           return
         }
       } catch (error) {
-        // User is not authenticated, show register form
         console.log("User not authenticated, showing register form")
       } finally {
         setCheckingAuth(false)
@@ -49,7 +46,6 @@ export default function RegisterPage() {
     checkAuthentication()
   }, [router])
 
-  // Show loading spinner while checking authentication
   if (checkingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">

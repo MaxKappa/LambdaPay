@@ -9,7 +9,7 @@ const BALANCE_TABLE = process.env.BALANCE_TABLE!;
 const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  // Request body validation
+ 
   if (!event.body) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -35,7 +35,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const userEmail = event.requestContext.authorizer?.claims.email;
   const username = event.requestContext.authorizer?.claims.preferred_username || userEmail?.split('@')[0];
 
-  // Strict parameter validation
+ 
   if (!requestId || !action || !userId || !userEmail) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -44,7 +44,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Action validation
+ 
   if (action !== 'ACCEPT' && action !== 'REJECT') {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -53,7 +53,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // RequestId format validation (must be a valid UUID)
+ 
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(requestId)) {
     return {
@@ -64,7 +64,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   }
 
   try {
-    // Retrieve the request
+   
     const requestItem = await db.send(new GetItemCommand({
       TableName: REQUESTS_TABLE,
       Key: { requestId: { S: requestId } }
@@ -80,7 +80,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     const request = requestItem.Item;
     
-    // Verifica che l'utente corrente sia il destinatario della richiesta
+   
     if (request.toUserId.S !== userId) {
       return {
         headers: { 'Access-Control-Allow-Origin': '*' },
@@ -89,7 +89,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       };
     }
 
-    // Verifica che la richiesta sia ancora in pending
+   
     if (request.status.S !== 'PENDING') {
       return {
         headers: { 'Access-Control-Allow-Origin': '*' },
@@ -100,7 +100,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     const amount = parseFloat(request.amount.N!);
     
-    // Validazione aggiuntiva sull'amount dalla richiesta memorizzata
+   
     if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
       return {
         headers: { 'Access-Control-Allow-Origin': '*' },
@@ -109,7 +109,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       };
     }
 
-    // Validazione di sicurezza: verifica che l'amount non sia stato manipolato
+   
     if (Math.round(amount * 100) !== amount * 100) {
       return {
         headers: { 'Access-Control-Allow-Origin': '*' },
@@ -122,7 +122,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const now = new Date().toISOString();
 
     if (action === 'REJECT') {
-      // Aggiorna solo lo status della richiesta
+     
       await db.send(new UpdateItemCommand({
         TableName: REQUESTS_TABLE,
         Key: { requestId: { S: requestId } },
@@ -134,11 +134,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         }
       }));
 
-      // Invia notifica WebSocket di richiesta rifiutata
+     
       try {
         const notifier = createWebSocketNotifier();
         
-        // Notifica al richiedente che la richiesta è stata rifiutata
+       
         await notifier.notifyUser(fromUserId, {
           type: 'REQUEST',
           data: {
@@ -165,7 +165,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       };
     }
 
-    // Se ACCEPT, verifica il saldo del destinatario (che sta pagando)
+   
     const payerBalanceRes = await db.send(new GetItemCommand({
       TableName: BALANCE_TABLE,
       Key: { userId: { S: userId } }
@@ -182,43 +182,43 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     const transactionId = uuidv4();
 
-    // Esegui il trasferimento e aggiorna la richiesta
+   
     await db.send(new TransactWriteItemsCommand({
       TransactItems: [
-        // Aggiorna saldo del pagatore (sottrae denaro)
+       
         {
           Update: {
             TableName: BALANCE_TABLE,
             Key: { userId: { S: userId } },
             UpdateExpression: 'SET balance = if_not_exists(balance, :zero) - :amt',
             ExpressionAttributeValues: { 
-              ':amt': { N: Math.abs(amount).toString() }, // Forza valore assoluto per sicurezza
+              ':amt': { N: Math.abs(amount).toString() },
               ':zero': { N: '0' } 
             },
-            ConditionExpression: 'balance >= :amt AND :amt > :zero' // Doppia verifica
+            ConditionExpression: 'balance >= :amt AND :amt > :zero'
           }
         },
-        // Aggiorna saldo del ricevente (aggiunge denaro)
+       
         {
           Update: {
             TableName: BALANCE_TABLE,
             Key: { userId: { S: fromUserId } },
             UpdateExpression: 'SET balance = if_not_exists(balance, :zero) + :amt',
             ExpressionAttributeValues: { 
-              ':amt': { N: Math.abs(amount).toString() }, // Forza valore assoluto per sicurezza
+              ':amt': { N: Math.abs(amount).toString() },
               ':zero': { N: '0' } 
             },
-            ConditionExpression: ':amt > :zero' // Verifica che l'amount sia positivo
+            ConditionExpression: ':amt > :zero'
           }
         },
-        // Crea transazione per il pagatore (negativa)
+       
         {
           Put: {
             TableName: TRANSACTIONS_TABLE,
             Item: {
               userId: { S: userId },
               transactionId: { S: transactionId },
-              amount: { N: (-Math.abs(amount)).toString() }, // Forza negativo assoluto
+              amount: { N: (-Math.abs(amount)).toString() },
               date: { S: now },
               to: { S: fromUserId },
               toEmail: { S: request.fromEmail.S! },
@@ -227,14 +227,14 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             }
           }
         },
-        // Crea transazione per il ricevente (positiva)
+       
         {
           Put: {
             TableName: TRANSACTIONS_TABLE,
             Item: {
               userId: { S: fromUserId },
               transactionId: { S: transactionId },
-              amount: { N: Math.abs(amount).toString() }, // Forza positivo assoluto
+              amount: { N: Math.abs(amount).toString() },
               date: { S: now },
               from: { S: userId },
               fromEmail: { S: userEmail },
@@ -243,7 +243,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             }
           }
         },
-        // Aggiorna lo status della richiesta
+       
         {
           Update: {
             TableName: REQUESTS_TABLE,
@@ -260,11 +260,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       ]
     }));
 
-    // Invia notifiche WebSocket real-time per accettazione richiesta
+   
     try {
       const notifier = createWebSocketNotifier();
       
-      // Notifica al richiedente che la richiesta è stata accettata e il pagamento ricevuto
+     
       await notifier.notifyUser(fromUserId, {
         type: 'REQUEST',
         data: {
@@ -282,7 +282,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         timestamp: now
       });
 
-      // Notifica al richiedente anche della transazione ricevuta
+     
       await notifier.notifyUser(fromUserId, {
         type: 'TRANSACTION',
         data: {
@@ -300,7 +300,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         timestamp: now
       });
 
-      // Notifica al pagatore della transazione inviata
+     
       await notifier.notifyUser(userId, {
         type: 'TRANSACTION',
         data: {
@@ -318,7 +318,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         timestamp: now
       });
 
-      // Notifica aggiornamento saldo a entrambi
+     
       const [updatedPayerBalance, updatedReceiverBalance] = await Promise.all([
         db.send(new GetItemCommand({
           TableName: BALANCE_TABLE,
@@ -360,7 +360,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   } catch (err: any) {
     console.error('Error handling request:', err);
     
-    // Specific handling for condition errors (insufficient balance)
+   
     if (err.name === 'TransactionCanceledException' && err.CancellationReasons) {
       const balanceFailure = err.CancellationReasons.find((reason: any) => reason.Code === 'ConditionalCheckFailed');
       if (balanceFailure) {

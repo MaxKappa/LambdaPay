@@ -34,14 +34,10 @@ export default function TransactionsClient() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  // WebSocket configuration for real-time transaction updates
   const { isConnected } = useWebSocket({
     onNotification: (notification: WebSocketNotification) => {
       if (notification.type === 'TRANSACTION') {
-        // Ricarica le transazioni quando arriva una nuova transazione
         loadTransactions()
-        
-        // Mostra notifica toast
         const transactionData = notification.data
         if (transactionData.type === 'RECEIVED') {
           toast({
@@ -72,7 +68,6 @@ export default function TransactionsClient() {
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
-        // Assicurati che Amplify sia configurato prima di controllare l'autenticazione
         configureAmplify()
         
         const currentUser = await getCurrentUser()
@@ -87,11 +82,9 @@ export default function TransactionsClient() {
         await loadTransactions()
       } catch (error: any) {
         console.error("Authentication or data loading error:", error)
-        // Se l'errore è legato alla configurazione di Amplify, prova a riconfigurare
         if (error.message?.includes("Auth UserPool not configured")) {
           try {
             configureAmplify()
-            // Riprova dopo la riconfigurazione
             const currentUser = await getCurrentUser()
             if (currentUser) {
               setUser(currentUser)
@@ -126,7 +119,6 @@ export default function TransactionsClient() {
     return null
   }
 
-  // Sort transactions by timestamp in descending order (newest first)
   const sortedTransactions = [...transactions].sort((a, b) => {
     const dateA = new Date(a.date.S).getTime()
     const dateB = new Date(b.date.S).getTime()
@@ -134,14 +126,12 @@ export default function TransactionsClient() {
   })
 
   const filteredTransactions = sortedTransactions.filter((transaction) => {
-    const amount = parseInt(transaction.amount.N) // Ora è in centesimi
+    const amount = parseInt(transaction.amount.N)
     const isOutgoing = amount < 0
 
-    // Apply filter
     if (filter === "sent" && !isOutgoing) return false
     if (filter === "received" && isOutgoing) return false
 
-    // Apply search
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
       const transactionId = transaction.transactionId.S.toLowerCase()
@@ -158,7 +148,6 @@ export default function TransactionsClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -170,7 +159,6 @@ export default function TransactionsClient() {
               <h1 className="text-xl font-semibold text-gray-900">Transaction History</h1>
             </div>
             
-            {/* Indicatore connessione WebSocket */}
             <div 
               className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
                 isConnected 
@@ -191,7 +179,6 @@ export default function TransactionsClient() {
           <CardHeader>
             <CardTitle>All Transactions</CardTitle>
 
-            {/* Search and Filter */}
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />

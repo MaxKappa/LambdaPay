@@ -26,7 +26,7 @@ export class WebSocketNotifier {
   async notifyUser(userId: string, payload: NotificationPayload): Promise<void> {
     try {        console.log(`Sending notification to user ${userId}:`, JSON.stringify(payload));
       
-      // Find all user connections
+     
       const connections = await this.getUserConnections(userId);
       
       if (connections.length === 0) {
@@ -36,7 +36,7 @@ export class WebSocketNotifier {
 
       console.log(`Found ${connections.length} connections for user ${userId}:`, connections);
 
-      // Send notification to all user connections
+     
       const promises = connections.map(connectionId => 
         this.sendToConnection(connectionId, payload)
       );
@@ -92,14 +92,14 @@ export class WebSocketNotifier {
         metadata: error.$metadata
       });
       
-      // Se la connessione è stale (410) o proibita (403), rimuovila dal database
+     
       const statusCode = error.statusCode || error.$metadata?.httpStatusCode;
       if (statusCode === 410 || statusCode === 403 || error.name === 'GoneException' || error.name === 'ForbiddenException') {
         console.log(`Connection ${connectionId} no longer valid (status: ${statusCode}), removing...`);
         await this.removeStaleConnection(connectionId);
       }
       
-      // Re-throw to allow handling at upper level
+     
       throw error;
     }
   }
@@ -141,7 +141,7 @@ export function createWebSocketNotifier(): WebSocketNotifier {
     throw new Error('WEBSOCKET_API_ID environment variable is required');
   }
   
-  // Endpoint for ApiGatewayManagementApi (different from WebSocket endpoint)
+ 
   const endpoint = `https://${apiId}.execute-api.${region}.amazonaws.com/${stage}`;
   console.log(`Creating WebSocket notifier with endpoint: ${endpoint}`);
   return new WebSocketNotifier(endpoint);

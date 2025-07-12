@@ -10,7 +10,7 @@ const REQUESTS_TABLE = process.env.REQUESTS_TABLE!;
 const USER_POOL_ID = process.env.USER_POOL_ID!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  // Request body validation
+ 
   if (!event.body) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -35,7 +35,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const fromEmail = event.requestContext.authorizer?.claims.email;
   const fromUsername = event.requestContext.authorizer?.claims.preferred_username || fromEmail?.split('@')[0];
 
-  // Strict parameter validation
+ 
   if (!amount || !recipientEmail || !fromUserId || !fromEmail) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -44,7 +44,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Amount data type validation - must be an integer (cents)
+ 
   if (typeof amount !== 'number') {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -55,7 +55,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
   const amountInCents = amount;
 
-  // Robust amount validation
+ 
   if (!Number.isInteger(amountInCents) || !isFinite(amountInCents)) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -64,7 +64,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Security validation: amount must be strictly positive
+ 
   if (amountInCents <= 0) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -73,7 +73,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Security validation: maximum limit for requested amount (100,000 cents = 1,000 euros)
+ 
   const MAX_REQUEST_AMOUNT = 100000;
   if (amountInCents > MAX_REQUEST_AMOUNT) {
     return {
@@ -83,7 +83,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Email format validation
+ 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(recipientEmail)) {
     return {
@@ -93,7 +93,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Additional message validation (if present)
+ 
   if (message && typeof message !== 'string') {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -102,7 +102,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Message length limitation
+ 
   if (message && message.length > 500) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -111,7 +111,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Cannot request money from yourself
+ 
   if (recipientEmail === fromEmail) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -120,7 +120,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  // Resolve recipientEmail to Cognito userId
+ 
   let toUserId: string | undefined;
   let toUsername: string | undefined;
   try {
@@ -160,8 +160,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         requestId: { S: requestId },
         fromUserId: { S: fromUserId },
         toUserId: { S: toUserId },
-        amount: { N: Math.abs(amountInCents).toString() }, // Force absolute value for security
-        message: { S: (message || '').substring(0, 500) }, // Limit message and force secure string
+        amount: { N: Math.abs(amountInCents).toString() },
+        message: { S: (message || '').substring(0, 500) },
         status: { S: 'PENDING' },
         createdAt: { S: now },
         fromEmail: { S: fromEmail },
@@ -171,7 +171,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }
     }));
 
-    // Send real-time WebSocket notification to request recipient
+   
     try {
       const notifier = createWebSocketNotifier();
       
@@ -193,7 +193,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       });
     } catch (notificationError) {
       console.error('Error sending WebSocket notification for new request:', notificationError);
-      // Don't block response if notification fails
+     
     }
 
     return {

@@ -39,16 +39,15 @@ export default function DashboardClient() {
   const [requestModalOpen, setRequestModalOpen] = useState(false)
   const router = useRouter()
 
-  // WebSocket configuration for real-time notifications
   const { isConnected, connectionStatus } = useWebSocket({
     onNotification: (notification: WebSocketNotification) => {
       console.log('WebSocket notification received:', notification)
       
       switch (notification.type) {
-        case 'TRANSACTION':        // Automatically update transactions when a payment arrives
+        case 'TRANSACTION':       
         refreshData()
           
-          // Mostra notifica toast
+
           const transactionData = notification.data
           if (transactionData.type === 'RECEIVED') {
             toast({
@@ -89,7 +88,6 @@ export default function DashboardClient() {
           break
           
         case 'BALANCE_UPDATE':
-          // Update only balance for better efficiency
           setBalance(notification.data.balance.toString())
           break
       }
@@ -101,7 +99,6 @@ export default function DashboardClient() {
       console.log('WebSocket disconnected - Real-time notifications unavailable')
     },
     onError: (error) => {
-      // Solo logga errori significativi
       if (error.type && error.type !== 'error') {
         console.error('WebSocket error:', error);
       } else {
@@ -110,11 +107,9 @@ export default function DashboardClient() {
     }
   })
 
-  // Check authentication and load initial data
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
-        // Make sure Amplify is configured before checking authentication
         configureAmplify()
         
         const currentUser = await getCurrentUser()
@@ -138,11 +133,9 @@ export default function DashboardClient() {
         setTransactions(userTransactions)
       } catch (error: any) {
         console.error("Authentication or data loading error:", error)
-        // If the error is related to Amplify configuration, try to reconfigure
         if (error.message?.includes("Auth UserPool not configured")) {
           try {
             configureAmplify()
-            // Retry after reconfiguration
             const currentUser = await getCurrentUser()
             if (currentUser) {
               setUser(currentUser)
@@ -199,7 +192,6 @@ export default function DashboardClient() {
     }
   }
 
-  // Show loading spinner while checking authentication
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -211,12 +203,10 @@ export default function DashboardClient() {
     )
   }
 
-  // Don't render anything if user is not authenticated (redirect is in progress)
   if (!user) {
     return null
   }
 
-  // Sort transactions by timestamp in descending order (newest first)
   const sortedTransactions = [...transactions].sort((a, b) => {
     const dateA = new Date(a.date.S).getTime()
     const dateB = new Date(b.date.S).getTime()
@@ -227,7 +217,6 @@ export default function DashboardClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -239,7 +228,6 @@ export default function DashboardClient() {
             </div>
 
             <div className="flex items-center space-x-4">
-              {/* Indicatore connessione WebSocket */}
               <div 
                 className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
                   isConnected 
@@ -325,7 +313,6 @@ export default function DashboardClient() {
             </Card>
           </div>
 
-          {/* Recent Transactions */}
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>

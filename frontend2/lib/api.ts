@@ -32,7 +32,6 @@ export async function getBalance(): Promise<number> {
     }
 
     const data = await response.json()
-    // Il backend restituisce i centesimi
     return parseInt(data.balance) || 0
   } catch (error: any) {
     throw new Error(error.message || "Failed to get balance")
@@ -64,7 +63,7 @@ export async function transfer(amountInCents: number, recipientEmail: string): P
       method: "POST",
       headers,
       body: JSON.stringify({
-        amount: amountInCents, // Send cents to backend
+        amount: amountInCents, 
         recipientId: recipientEmail,
       }),
     })
@@ -87,7 +86,7 @@ export async function requestMoney(amountInCents: number, recipientEmail: string
       method: "POST",
       headers,
       body: JSON.stringify({
-        amount: amountInCents, // Send cents to backend
+        amount: amountInCents,
         recipientEmail: recipientEmail,
         message: message || '',
       }),

@@ -8,7 +8,6 @@ import {
 } from "aws-amplify/auth"
 import { configureAmplify } from "./amplify-config"
 
-// Make sure Amplify is configured
 configureAmplify()
 
 export async function signIn(email: string, password: string) {

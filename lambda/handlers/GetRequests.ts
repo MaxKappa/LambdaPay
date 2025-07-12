@@ -7,7 +7,7 @@ const REQUESTS_TABLE = process.env.REQUESTS_TABLE!;
 export const handler: APIGatewayProxyHandler = async (event) => {
   const claims = event.requestContext.authorizer?.claims || event.requestContext.authorizer;
   const userId = claims?.sub;
-  const type = event.queryStringParameters?.type || 'received'; // 'received' or 'sent'
+  const type = event.queryStringParameters?.type || 'received';
   
   if (!userId) {
     return {
@@ -20,7 +20,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     let queryParams;
     
     if (type === 'sent') {
-      // Richieste inviate dall'utente corrente
+     
       queryParams = {
         TableName: REQUESTS_TABLE,
         IndexName: 'FromUserIndex',
@@ -28,7 +28,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         ExpressionAttributeValues: { ':userId': { S: userId } }
       };
     } else {
-      // Richieste ricevute dall'utente corrente (default)
+     
       queryParams = {
         TableName: REQUESTS_TABLE,
         IndexName: 'ToUserIndex',
