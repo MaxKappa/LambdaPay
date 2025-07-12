@@ -78,7 +78,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
       statusCode: 400,
-      body: JSON.stringify({ message: `Amount cannot exceed ${(MAX_TRANSFER_AMOUNT / 100).toLocaleString('en-US')} euros` }),
+      body: JSON.stringify({ message: `Amount cannot exceed ${(MAX_TRANSFER_AMOUNT / 100).toLocaleString('en-US')} dollars` }),
     };
   }
 
