@@ -1,0 +1,39 @@
+config:
+  target: "https://odgp7mptod.execute-api.eu-west-1.amazonaws.com/dev"
+  phases:
+    - name: "Ramp-up traffic"
+      duration: 100    
+      arrivalRate: 5   
+      rampTo: 50       
+  defaults:
+    headers:
+      Authorization: "Bearer eyJraWQiOiI3WmN0eDZmRUhHU0xKUjZrcUxtSHlmQ01hcndCQnFidVZCWTFIUk9qSUtFPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiIwMjY1MzRlNC1iMDIxLTcwZTMtODM4ZS0yZmI4MzMwYmU2Y2YiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLmV1LXdlc3QtMS5hbWF6b25hd3MuY29tXC9ldS13ZXN0LTFfRktkb041cVJJIiwiY29nbml0bzp1c2VybmFtZSI6IjAyNjUzNGU0LWIwMjEtNzBlMy04MzhlLTJmYjgzMzBiZTZjZiIsInByZWZlcnJlZF91c2VybmFtZSI6Ik1hc3NpbWlsaWFubyIsIm9yaWdpbl9qdGkiOiIwMjdmNWRmMy0zMWNjLTRjODgtYjUwNy1kMDg5MzNlM2ZlODciLCJhdWQiOiI0NmdlOG1qcG43ZDFjZmw1dWxqdWk4NWZsZyIsImV2ZW50X2lkIjoiN2MwZGFiMzYtNTI3Yi00YjRlLTliMTQtNjc0OGU2MGU1ODUzIiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE3NTI2NzcyNzYsImV4cCI6MTc1MjY4MDg3NiwiaWF0IjoxNzUyNjc3Mjc2LCJqdGkiOiJiZTMxYmM3Mi05YWUxLTQ2MGMtYTk1NS0zMDI1YTE4MDVhYzQiLCJlbWFpbCI6Im1hc3Npa2FwcGFydWNjaWFAaWNsb3VkLmNvbSJ9.iramLsrQZdh94VytSrSH9nDtFH9kpvsuK5mlGes2Mtg6M8OY_VepNMtTTMHUAISCQNPI16xoMTODEzXht-WXIbNmYL6m0OyB3oGUvu1moXSN7mlAEn55cBO-VXwQ_alA2gBdt1SE7S8G3iFTzbZSszOVuN56-XgDquY5IXHeniWE50uTGn8JFVK6g4blEHWXNswU1klG_nVlQFVtHxPyYxs0Dmw1g1I6hR61zOcNXh_-U9MMV3v8cvHqqRnmgJ7id2DJcyBGgvRpvrGIqEH2FrcqAsNX_JZpPWpDfZz4yl0kyE7-wcpjOwNpuDEgwZy5Iv8g6LEP8vhEvf-AE3KSTw"
+      Content-Type: "application/json"
+
+scenarios:
+  - name: "GET /balance"
+    weight: 25
+    flow:
+      - get:
+          url: "/balance"
+
+  - name: "GET /transactions"
+    weight: 25
+    flow:
+      - get:
+          url: "/transactions"
+
+  - name: "POST /transfer"
+    weight: 30
+    flow:
+      - post:
+          url: "/transfer"
+          json:
+            amount: 2
+            recipientId: "massikapparuccia@gmail.com"
+
+  - name: "GET /requests"
+    weight: 10
+    flow:
+      - get:
+          url: "/requests"
