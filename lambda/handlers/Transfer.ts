@@ -11,7 +11,13 @@ const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE!;
 const USER_POOL_ID = process.env.USER_POOL_ID!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
- 
+ /*
+  return {
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    statusCode: 500,
+    body: JSON.stringify({ message: 'This is a test error' })
+  }
+ */
   if (!event.body) {
     return {
       headers: { 'Access-Control-Allow-Origin': '*' },
