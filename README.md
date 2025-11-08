@@ -11,6 +11,8 @@
 
 LambdaPay is a fully serverless payment application that enables users to transfer money, request payments, and manage their balance in real-time. Built with modern web technologies and AWS serverless architecture, it provides a secure, scalable, and cost-effective solution for digital payments.
 
+Presentation (PDF) used to showcase the project: [`presentation.pdf`](presentation.pdf)
+
 ### ✨ Key Features
 
 - **💰 Instant Transfers**: Send money to other users instantly
